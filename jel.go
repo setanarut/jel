@@ -9,6 +9,8 @@ const (
 	penetrationSlop float64 = 0.001
 )
 
+var infinity float64 = math.Inf(1)
+
 type Body interface {
 	GetBaseBody() *BaseBody
 	GetAABB() *AABB
@@ -29,8 +31,6 @@ type Body interface {
 	bitmaskY() *Bitmask
 	material() int
 }
-
-var infinity float64 = math.Inf(1)
 
 type Bitmask uint
 
@@ -238,10 +238,7 @@ func (b *BaseBody) derivePositionAndAngle(elapsed float64) {
 			if thisAngle < 0 {
 				thisSign = -1
 			}
-			absDiff := diff
-			if diff < 0 {
-				absDiff = -diff
-			}
+			absDiff := math.Abs(diff)
 			if absDiff > math.Pi && thisSign != originalSign {
 				if thisSign == -1 {
 					thisAngle = math.Pi + (math.Pi + thisAngle)
@@ -255,10 +252,7 @@ func (b *BaseBody) derivePositionAndAngle(elapsed float64) {
 	angle /= l
 	b.DerivedAngle = angle
 	angleChange := b.DerivedAngle - b.LastAngle
-	absAngleChange := angleChange
-	if angleChange < 0 {
-		absAngleChange = -angleChange
-	}
+	absAngleChange := math.Abs(angleChange)
 	if absAngleChange >= math.Pi {
 		if angleChange < 0 {
 			angleChange += math.Pi * 2
@@ -269,6 +263,7 @@ func (b *BaseBody) derivePositionAndAngle(elapsed float64) {
 	b.DerivedOmega = angleChange / elapsed
 	b.LastAngle = b.DerivedAngle
 }
+
 func (b *BaseBody) updateEdgeInfo() {
 	pointMasses := b.PointMasses
 	l := len(pointMasses)
@@ -1077,7 +1072,7 @@ func IgnoreCollisionFunc(A Body, pmA *PointMass, B Body, pmB1 *PointMass, pmB2 *
 }
 func CalculateSpringForce(posA, velA, posB, velB Vec2, springD, springK, damping float64) (forceOut Vec2) {
 	bToA := posA.Sub(posB)
-	if bToA.MagSq() < epsilon1e8 {
+	if bToA.MagSq() < epsilon {
 		return
 	}
 	dist := bToA.Mag()

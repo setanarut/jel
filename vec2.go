@@ -5,7 +5,7 @@ import (
 	"math"
 )
 
-const epsilon1e8 = 1e-8
+const epsilon = 1e-8
 
 // +Y coordinate system (Y increases downward).
 // Angles are measured clockwise from the positive X axis.
@@ -63,10 +63,10 @@ func (v Vec2) Scale(s float64) Vec2 {
 //   - vectors with squared length within 1e‑8 of 1.0 are considered already normalized
 func (v Vec2) Unit() Vec2 {
 	sl := v.MagSq()
-	if sl < epsilon1e8 {
+	if sl < epsilon {
 		return v
 	}
-	if math.Abs(sl-1) < epsilon1e8 {
+	if math.Abs(sl-1) < epsilon {
 		return v
 	}
 	return v.Scale(1.0 / math.Sqrt(sl))
