@@ -13,11 +13,11 @@ func Baloon() jel.PressureBodyOptions {
 		SpringBodyOptions: jel.SpringBodyOptions{
 			SpringMat:           jel.SpringMat{80, 4},
 			MassPerPoint:        0.1,
-			ShapeMatchStiffness: 5,
+			ShapeMatchStiffness: 30,
 			ShapeMatchDamping:   0.5,
 			ShapeMatching:       true,
 		},
-		GasPressure: 1,
+		GasPressure: 3,
 	}
 
 }
@@ -26,8 +26,8 @@ func Jell() jel.SpringBodyOptions {
 	return jel.SpringBodyOptions{
 		SpringMat:           jel.SpringMat{15, 3},
 		MassPerPoint:        0.3,
-		ShapeMatchStiffness: 25,
-		ShapeMatchDamping:   2,
+		ShapeMatchStiffness: 150,
+		ShapeMatchDamping:   30,
 		ShapeMatching:       true,
 	}
 }

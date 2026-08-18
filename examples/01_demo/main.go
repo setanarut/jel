@@ -33,8 +33,12 @@ func NewGame(ppm float64) *Game {
 }
 
 func (g *Game) Initalize() {
-	g.renderer.ShowSpring = true
-	g.renderer.ShowPointMassDots = true
+	// g.renderer.ShowSpring = true
+	// g.renderer.ShowPointMassIndices = true
+	// g.renderer.ShowPointMassDots = true
+	// g.renderer.ShowStrokeGlobalShape = true
+	g.renderer.ShowFillPointMasses = true
+	g.renderer.ShowStrokePointMasses = true
 	g.renderer.So.Width = 3
 
 	// Materyaller
@@ -47,29 +51,39 @@ func (g *Game) Initalize() {
 		return true
 	})
 
+	// Kutu: 30 cm = 0.3 metre
+	carSize := jel.Vec2{2, 0.5}
+	car := g.makeBox(jel.Vec2{2, 2}, carSize)
+	car.AddInternalSpring(0, 4, presets.Jelly)
+	car.AddInternalSpring(6, 2, presets.Jelly)
+	// car.AddInternalSpring(1, 5, presets.Jelly)
+	// car.IsPinned = true
+	car.GetBaseBody().UserData = "araba"
+	car.BaseBody.MaterialID = matCar
+
 	matWheel := g.world.AddMaterial(0.5, 0, func(bodyA jel.Body, pmA *jel.PointMass, bodyB jel.Body, pmB1 *jel.PointMass, pmB2 *jel.PointMass, hitPt jel.Vec2, normSpeed float64) bool {
 		if bodyB.GetBaseBody().UserData == "araba" {
 			return false
 		}
 		return true
 	})
-
-	// Kutu: 30 cm = 0.3 metre
-	carSize := jel.Vec2{1, 0.3}
-	car := g.makeBox(jel.Vec2{2, 2}, carSize)
-	car.GetBaseBody().UserData = "araba"
-	car.BaseBody.MaterialID = matCar
-
 	// Tekerlek: 20 cm çap = yarıçap 0.1 metre
 	wheelRadius := 0.1
 	wheel := g.makeBaloon(jel.Vec2{2, 1.85}, wheelRadius, 12)
 	wheel.BaseBody.MaterialID = matWheel
 	wheel.GetBaseBody().UserData = "tekerlek"
+	// Tekerlek: 20 cm çap = yarıçap 0.1 metre
+	wheel2 := g.makeBaloon(jel.Vec2{2, 1.85}, wheelRadius, 12)
+	wheel2.BaseBody.MaterialID = matWheel
+	wheel2.GetBaseBody().UserData = "tekerlek"
 
 	// Tekerleği arabanın altına bağla
-	wj := jel.NewWheelJoint(car, wheel, []int{}, nil)
+	wj := jel.NewWheelJoint(car, wheel, []int{0, 2, 3}, nil)
+	wj2 := jel.NewWheelJoint(car, wheel2, []int{3, 4, 6}, nil)
 	wj.MotorTorque = 1
+	wj2.MotorTorque = 1
 	g.world.AddWheelJoint(wj)
+	g.world.AddWheelJoint(wj2)
 
 	g.makeWalls(matFloor)
 }
@@ -244,16 +258,26 @@ func (g *Game) makeWalls(materialID int) {
 }
 
 func (g *Game) makeBox(pos jel.Vec2, size jel.Vec2) *jel.SpringBody {
+	// verts := []jel.Vec2{
+	// 	{X: 0, Y: 0},
+	// 	{X: 0, Y: size.Y},
+	// 	{X: size.X, Y: size.Y},
+	// 	{X: size.X, Y: 0},
+	// }
+
 	verts := []jel.Vec2{
-		{X: 0, Y: 0},
-		{X: 0, Y: size.Y},
-		{X: size.X, Y: size.Y},
-		{X: size.X, Y: 0},
+		{X: 0, Y: 0},               // sol alt
+		{X: 0, Y: size.Y / 2},      // sol orta
+		{X: 0, Y: size.Y},          // sol üst
+		{X: size.X / 2, Y: size.Y}, // üst orta
+		{X: size.X, Y: size.Y},     // sağ üst
+		{X: size.X, Y: size.Y / 2}, // sağ orta
+		{X: size.X, Y: 0},          // sağ alt
+		{X: size.X / 2, Y: 0},      // alt orta
 	}
+
 	cs := jel.NewPolygon(verts)
 	sb := jel.NewSpringBody(g.world, cs, presets.Jell(), pos, 0, jel.One)
-	sb.AddInternalSpring(0, 2, presets.Jelly)
-	sb.AddInternalSpring(1, 3, presets.Jelly)
 	return sb
 }
 
