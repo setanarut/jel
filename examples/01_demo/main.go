@@ -223,22 +223,22 @@ func (g *Game) makeWalls(materialID int) {
 	}
 
 	bottomPos := jel.Vec2{X: g.WorldSize.X / 2.0, Y: g.WorldSize.Y - margin + ht}
-	bottom := jel.NewStaticBody(g.world, jel.NewClosedShape(horizontalVerts), bottomPos, 0, jel.One)
+	bottom := jel.NewStaticBody(g.world, jel.NewPolygon(horizontalVerts), bottomPos, 0, jel.One)
 	bottom.MaterialID = materialID
 	bottom.UserData = "zemin"
 
 	topPos := jel.Vec2{X: g.WorldSize.X / 2.0, Y: margin - ht}
-	top := jel.NewStaticBody(g.world, jel.NewClosedShape(horizontalVerts), topPos, 0, jel.One)
+	top := jel.NewStaticBody(g.world, jel.NewPolygon(horizontalVerts), topPos, 0, jel.One)
 	top.UserData = "zemin"
 	top.MaterialID = materialID
 
 	leftPos := jel.Vec2{X: margin - ht, Y: g.WorldSize.Y / 2.0}
-	left := jel.NewStaticBody(g.world, jel.NewClosedShape(verticalVerts), leftPos, 0, jel.One)
+	left := jel.NewStaticBody(g.world, jel.NewPolygon(verticalVerts), leftPos, 0, jel.One)
 	left.UserData = "zemin"
 	left.MaterialID = materialID
 
 	rightPos := jel.Vec2{X: g.WorldSize.X - margin + ht, Y: g.WorldSize.Y / 2.0}
-	right := jel.NewStaticBody(g.world, jel.NewClosedShape(verticalVerts), rightPos, 0, jel.One)
+	right := jel.NewStaticBody(g.world, jel.NewPolygon(verticalVerts), rightPos, 0, jel.One)
 	right.UserData = "zemin"
 	right.MaterialID = materialID
 }
@@ -250,7 +250,7 @@ func (g *Game) makeBox(pos jel.Vec2, size jel.Vec2) *jel.SpringBody {
 		{X: size.X, Y: size.Y},
 		{X: size.X, Y: 0},
 	}
-	cs := jel.NewClosedShape(verts)
+	cs := jel.NewPolygon(verts)
 	sb := jel.NewSpringBody(g.world, cs, presets.Jell(), pos, 0, jel.One)
 	sb.AddInternalSpring(0, 2, presets.Jelly)
 	sb.AddInternalSpring(1, 3, presets.Jelly)
@@ -266,7 +266,7 @@ func (g *Game) makeBaloon(pos jel.Vec2, r float64, n int) *jel.PressureBody {
 			Y: math.Sin(rad) * r,
 		})
 	}
-	ballShape := jel.NewClosedShape(ballVerts)
+	ballShape := jel.NewPolygon(ballVerts)
 	b := jel.NewPressureBody(
 		g.world,
 		ballShape,
