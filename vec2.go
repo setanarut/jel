@@ -182,17 +182,17 @@ func (v Vec2) Slerp(to Vec2, weight float64) Vec2 {
 	return v.Rotate(angle * weight).Scale(resultLength / startLength)
 }
 
-// AngleTo returns the clockwise angle (in radians) from v to other.
+// AngleTo returns the angle (radians) to rotate v by — using Rotate —
+// to align it with other. Positive = clockwise on screen (+Y-down),
+// matching Ebitengine's GeoM.Rotate convention.
 func (v Vec2) AngleTo(other Vec2) float64 {
-	// Standard CCW angle difference = atan2(cross, dot).
-	// Clockwise difference is the negative of that.
-	return -math.Atan2(v.Cross(other), v.Dot(other))
+	return math.Atan2(v.Cross(other), v.Dot(other))
 }
 
 // Limit clamps the magnitude of v to max.
 func (v Vec2) Limit(max float64) Vec2 {
-	if v.Dot(v) > max*max {
-		return v.Unit().Scale(max)
+	if sl := v.MagSq(); sl > max*max {
+		return v.Scale(max / math.Sqrt(sl))
 	}
 	return v
 }

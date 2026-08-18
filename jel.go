@@ -67,7 +67,7 @@ type Polygon struct {
 	Vertices []Vec2
 }
 
-func NewClosedShape(verts []Vec2) *Polygon {
+func NewPolygon(verts []Vec2) *Polygon {
 	s := &Polygon{Vertices: make([]Vec2, 0)}
 	if verts != nil {
 		s.Vertices = append(s.Vertices, verts...)
