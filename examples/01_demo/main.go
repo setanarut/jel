@@ -157,9 +157,9 @@ func (g *Game) handleMouseDragAABBBaseShape() {
 }
 
 func (g *Game) Update() error {
-	// g.HandleMouseDragForcePoint()
-	g.handleMouseDragAABBBaseShape()
 	g.world.Update(timeStep)
+	g.HandleMouseDragForcePoint()
+	// g.handleMouseDragAABBBaseShape()
 	return nil
 }
 
