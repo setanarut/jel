@@ -42,9 +42,9 @@ func (g *Game) Initalize() {
 	g.renderer.So.Width = 3
 
 	// Materyaller
-	matFloor := g.world.AddMaterial(0.3, 0.2, jel.CollideFunc)
+	matFloor := g.world.AddMaterial(1, 0., jel.CollideFunc)
 
-	matCar := g.world.AddMaterial(0.1, 0, func(bodyA jel.Body, pmA *jel.PointMass, bodyB jel.Body, pmB1 *jel.PointMass, pmB2 *jel.PointMass, hitPt jel.Vec2, normSpeed float64) bool {
+	matCar := g.world.AddMaterial(1, 0, func(bodyA jel.Body, pmA *jel.PointMass, bodyB jel.Body, pmB1 *jel.PointMass, pmB2 *jel.PointMass, hitPt jel.Vec2, normSpeed float64) bool {
 		if bodyB.GetBaseBody().UserData == "tekerlek" {
 			return false
 		}
@@ -61,7 +61,7 @@ func (g *Game) Initalize() {
 	car.GetBaseBody().UserData = "araba"
 	car.BaseBody.MaterialID = matCar
 
-	matWheel := g.world.AddMaterial(0.5, 0, func(bodyA jel.Body, pmA *jel.PointMass, bodyB jel.Body, pmB1 *jel.PointMass, pmB2 *jel.PointMass, hitPt jel.Vec2, normSpeed float64) bool {
+	matWheel := g.world.AddMaterial(1, 0.3, func(bodyA jel.Body, pmA *jel.PointMass, bodyB jel.Body, pmB1 *jel.PointMass, pmB2 *jel.PointMass, hitPt jel.Vec2, normSpeed float64) bool {
 		if bodyB.GetBaseBody().UserData == "araba" {
 			return false
 		}
@@ -69,19 +69,19 @@ func (g *Game) Initalize() {
 	})
 	// Tekerlek: 20 cm çap = yarıçap 0.1 metre
 	wheelRadius := 0.1
-	wheel := g.makeBaloon(jel.Vec2{2, 1.85}, wheelRadius, 12)
+	wheel := g.makeWheel(jel.Vec2{2, 1.85}, wheelRadius, 12)
 	wheel.BaseBody.MaterialID = matWheel
 	wheel.GetBaseBody().UserData = "tekerlek"
 	// Tekerlek: 20 cm çap = yarıçap 0.1 metre
-	wheel2 := g.makeBaloon(jel.Vec2{2, 1.85}, wheelRadius, 12)
+	wheel2 := g.makeWheel(jel.Vec2{2, 1.85}, wheelRadius, 12)
 	wheel2.BaseBody.MaterialID = matWheel
 	wheel2.GetBaseBody().UserData = "tekerlek"
 
 	// Tekerleği arabanın altına bağla
 	wj := jel.NewWheelJoint(car, wheel, []int{0, 2, 3}, nil)
 	wj2 := jel.NewWheelJoint(car, wheel2, []int{3, 4, 6}, nil)
-	wj.MotorTorque = 1
-	wj2.MotorTorque = 1
+	wj.MotorTorque = 5
+	wj2.MotorTorque = 5
 	g.world.AddWheelJoint(wj)
 	g.world.AddWheelJoint(wj2)
 
@@ -281,7 +281,7 @@ func (g *Game) makeBox(pos jel.Vec2, size jel.Vec2) *jel.SpringBody {
 	return sb
 }
 
-func (g *Game) makeBaloon(pos jel.Vec2, r float64, n int) *jel.PressureBody {
+func (g *Game) makeWheel(pos jel.Vec2, r float64, n int) *jel.PressureBody {
 	ballVerts := make([]jel.Vec2, 0, n)
 	for i := range n {
 		rad := -float64(i) * (2 * math.Pi / float64(n))
@@ -294,7 +294,7 @@ func (g *Game) makeBaloon(pos jel.Vec2, r float64, n int) *jel.PressureBody {
 	b := jel.NewPressureBody(
 		g.world,
 		ballShape,
-		presets.Baloon(),
+		presets.CarTire(),
 		pos,
 		0,
 		jel.One,

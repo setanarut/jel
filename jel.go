@@ -158,7 +158,7 @@ func NewBaseBody(w *World, shape *Polygon, masses float64, pos Vec2, angle float
 		LastAngle:    angle,
 		Scale:        scale,
 		Kinematic:    kinematic,
-		VelDamping:   1,
+		VelDamping:   0.99,
 		maskX:        new(Bitmask),
 		maskY:        new(Bitmask),
 		PointMasses:  make([]PointMass, 0),
@@ -753,33 +753,35 @@ type Material struct {
 }
 type World struct {
 	Gravity               Vec2
-	GravityDisabled       bool
 	Bodies                []Body
 	Joints                []*WheelJoint
 	Materials             []Material
 	CollisionList         []BodyCollisionInfo
-	PenetrationThreshold  float64
 	MaxPositionCorrection float64
+	PenetrationThreshold  float64
 	Iterations            int
 	size                  Vec2
 	worldLimits           *AABB
 	worldGridStep         Vec2
-	PenetrationCount      int
+}
+
+func (w *World) CalculateCorrectionAndThreshold(minObjectSize float64) {
+	w.PenetrationThreshold = minObjectSize * 0.01
+	w.MaxPositionCorrection = minObjectSize * 0.20
 }
 
 func NewWorld() *World {
 	w := &World{
-		Gravity:               Vec2{0, 9.80665},
-		Bodies:                make([]Body, 0),
-		Joints:                make([]*WheelJoint, 0),
-		CollisionList:         make([]BodyCollisionInfo, 0),
-		PenetrationThreshold:  0.01,
-		MaxPositionCorrection: 0.9,
-		Iterations:            6,
-		Materials:             make([]Material, 0),
+		Gravity:       Vec2{0, 9.80665},
+		Bodies:        make([]Body, 0),
+		Joints:        make([]*WheelJoint, 0),
+		CollisionList: make([]BodyCollisionInfo, 0),
+		Iterations:    6,
+		Materials:     make([]Material, 0),
 	}
 	w.SetWorldLimits(Vec2{-20.0, -20.0}, Vec2{20.0, 20.0})
 	w.AddMaterial(0.3, 0.2, CollideFunc)
+	w.CalculateCorrectionAndThreshold(0.3)
 	return w
 }
 func (w *World) SetWorldLimits(min, max Vec2) {
@@ -811,7 +813,6 @@ func (w *World) AddWheelJoint(j *WheelJoint) {
 }
 func (w *World) Update(delta float64) {
 	subStepDelta := delta / float64(w.Iterations)
-	w.PenetrationCount = 0
 	bodies := w.Bodies
 	lenBodies := len(bodies)
 	for _, b := range bodies {
@@ -995,10 +996,8 @@ func (w *World) handleCollisions() {
 			continue
 		}
 		correctionMag := max(info.Penetration-penetrationSlop, 0.0) * baumgarte
-		if correctionMag > w.MaxPositionCorrection {
-			correctionMag = w.MaxPositionCorrection
-			w.PenetrationCount++
-		}
+		correctionMag = min(correctionMag, w.MaxPositionCorrection)
+
 		b1inf := 1.0 - info.EdgeD
 		b2inf := info.EdgeD
 		b2MassSum := B1.Mass + B2.Mass
