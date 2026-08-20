@@ -249,25 +249,31 @@ func (g *Game) makeCarChassis(pos jel.Vec2) *jel.SpringBody {
 	opts := jel.SpringBodyOptions{
 		SpringMat: jel.SpringMat{
 			Stiffness: 800.0,
-			Damping:   30.0,
+			// Titremeyi kesmek için sönümleme artırıldı
+			Damping: 60.0,
 		},
 		MassPerPoint: 3.0,
 
-		ShapeMatching:       true,
-		ShapeMatchStiffness: 2000.0,
-		ShapeMatchDamping:   50.0,
+		ShapeMatching: true,
+		// Aşırı yüksek stiffness sapıtmaya yol açar, dengeledik
+		ShapeMatchStiffness: 1200.0,
+		// Şekli korurken oluşan mikro titreşimleri emmesi için yüksek sönümleme
+		ShapeMatchDamping: 80.0,
 	}
 
 	cs := jel.NewPolygon(verts)
 	sb := jel.NewSpringBody(g.world, cs, opts, pos, 0, jel.Vec2{X: 1, Y: 1})
 
-	// Ekstra rijitlik için gövdenin uzak köşelerini çapraz yaylarla bağlayalım
-	sb.AddInternalSpring(0, 6, opts.SpringMat)
-	sb.AddInternalSpring(1, 8, opts.SpringMat)
+	// Kafes (Truss) Sistemi: 5 Adet İç Çapraz Yay (Cross-Bracing)
+	// Bu yaylar, dış kenarların içe çökmesini fiziksel olarak kilitler.
+	sb.AddInternalSpring(0, 6, opts.SpringMat) // Sol üstten -> Sağ alta (Ana Çapraz)
+	sb.AddInternalSpring(1, 8, opts.SpringMat) // Sol alttan -> Ön cama (İkinci Ana Çapraz)
+	sb.AddInternalSpring(0, 4, opts.SpringMat) // Sol üstten -> Ön tekerlek arkasına
+	sb.AddInternalSpring(8, 2, opts.SpringMat) // Ön camdan -> Arka tekerlek arkasına
+	sb.AddInternalSpring(1, 7, opts.SpringMat) // Sol alttan -> Kaputa
 
 	return sb
 }
-
 func (g *Game) makeWheel(pos jel.Vec2, r float64, n int) *jel.PressureBody {
 	ballVerts := make([]jel.Vec2, 0, n)
 	for i := range n {
