@@ -36,6 +36,8 @@ func (g *Game) Initalize() {
 	g.renderer.ShowSpring = true
 	// g.renderer.ShowFillPointMasses = true
 	g.renderer.ShowStrokePointMasses = true
+	g.renderer.ShowPointMassDots = true
+
 	g.renderer.So.Width = 3
 
 	// Materyaller
@@ -97,6 +99,8 @@ type Game struct {
 	prevTarget jel.Vec2
 	grabOffset jel.Vec2
 	PPM        float64
+	// Motorun anlık torkunu tutmak için yeni değişken
+	CurrentTorque float64
 }
 
 func (g *Game) HandleMouseDragForcePoint() {
@@ -133,18 +137,39 @@ func (g *Game) Update() error {
 	g.world.Update(timeStep)
 	g.HandleMouseDragForcePoint()
 
-	// KLAVYE İLE GAZ KONTROLÜ
-	torque := 0.0
-	if ebiten.IsKeyPressed(ebiten.KeyRight) {
-		torque = 6.0 // İleri gitmek için tork
-	} else if ebiten.IsKeyPressed(ebiten.KeyLeft) {
-		torque = -6.0 // Geri gitmek / Fren için tork
+	// Gaz ayarları
+	maxTorque := 50.0   // Ulaşabileceği maksimum motor gücü
+	acceleration := 1.0 // Space'e basılıyken her karede (frame) artış miktarı
+	deceleration := 0.3 // Tuş bırakıldığında motorun yavaşlama hızı
+
+	if ebiten.IsKeyPressed(ebiten.KeySpace) {
+		// Gazı azar azar artır
+		g.CurrentTorque += acceleration
+		if g.CurrentTorque > maxTorque {
+			g.CurrentTorque = maxTorque
+		}
+	} else {
+		// Space bırakıldıysa gazı yavaşça kes
+		if g.CurrentTorque > 0 {
+			g.CurrentTorque -= deceleration
+			if g.CurrentTorque < 0 {
+				g.CurrentTorque = 0
+			}
+		}
 	}
 
-	// Torku world içindeki WheelJoint'lere uygula
+	// Geri gitmek veya fren yapmak için Sol ok tuşunu da ekleyebiliriz
+	if ebiten.IsKeyPressed(ebiten.KeyLeft) {
+		g.CurrentTorque -= acceleration
+		if g.CurrentTorque < -maxTorque {
+			g.CurrentTorque = -maxTorque
+		}
+	}
+
+	// Hesaplanmış yumuşak torku tekerleklere uygula
 	if len(g.world.Joints) >= 2 {
-		g.world.Joints[0].MotorTorque = torque // Arka tekerlek
-		g.world.Joints[1].MotorTorque = torque // Ön tekerlek (4 çeker yapmak istersen. Sadece arkadan itiş için 1. indexi 0 bırakabilirsin)
+		g.world.Joints[0].MotorTorque = g.CurrentTorque
+		g.world.Joints[1].MotorTorque = g.CurrentTorque
 	}
 
 	return nil
