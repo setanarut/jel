@@ -137,36 +137,22 @@ func (g *Game) Update() error {
 	g.world.Update(timeStep)
 	g.HandleMouseDragForcePoint()
 
-	// Gaz ayarları
-	maxTorque := 50.0   // Ulaşabileceği maksimum motor gücü
-	acceleration := 1.0 // Space'e basılıyken her karede (frame) artış miktarı
-	deceleration := 0.3 // Tuş bırakıldığında motorun yavaşlama hızı
-
 	if ebiten.IsKeyPressed(ebiten.KeySpace) {
-		// Gazı azar azar artır
-		g.CurrentTorque += acceleration
-		if g.CurrentTorque > maxTorque {
-			g.CurrentTorque = maxTorque
-		}
+		// Gaz: Torku artır, ama 10.0'ı geçmesine izin verme
+		g.CurrentTorque = max(min(g.CurrentTorque+0.2, 50.0), -10.0)
+	} else if ebiten.IsKeyPressed(ebiten.KeyLeft) {
+		// Geri/Fren: Torku azalt, ama -10.0'ın altına düşmesine izin verme
+		g.CurrentTorque = max(g.CurrentTorque-0.2, -10.0)
 	} else {
-		// Space bırakıldıysa gazı yavaşça kes
+		// Tuşa basılmıyorsa yavaşça sıfıra dön (Motor kompresyonu)
 		if g.CurrentTorque > 0 {
-			g.CurrentTorque -= deceleration
-			if g.CurrentTorque < 0 {
-				g.CurrentTorque = 0
-			}
+			g.CurrentTorque = max(g.CurrentTorque-0.4, 0.0)
+		} else if g.CurrentTorque < 0 {
+			g.CurrentTorque = min(g.CurrentTorque+0.4, 0.0)
 		}
 	}
 
-	// Geri gitmek veya fren yapmak için Sol ok tuşunu da ekleyebiliriz
-	if ebiten.IsKeyPressed(ebiten.KeyLeft) {
-		g.CurrentTorque -= acceleration
-		if g.CurrentTorque < -maxTorque {
-			g.CurrentTorque = -maxTorque
-		}
-	}
-
-	// Hesaplanmış yumuşak torku tekerleklere uygula
+	// Torku tekerleklere uygula
 	if len(g.world.Joints) >= 2 {
 		g.world.Joints[0].MotorTorque = g.CurrentTorque
 		g.world.Joints[1].MotorTorque = g.CurrentTorque
@@ -277,7 +263,7 @@ func (g *Game) makeCarChassis(pos jel.Vec2) *jel.SpringBody {
 			// Titremeyi kesmek için sönümleme artırıldı
 			Damping: 60.0,
 		},
-		MassPerPoint: 3.0,
+		MassPerPoint: 1.0,
 
 		ShapeMatching: true,
 		// Aşırı yüksek stiffness sapıtmaya yol açar, dengeledik
