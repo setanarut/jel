@@ -66,7 +66,7 @@ func (g *Game) Initalize() {
 	})
 
 	// Tekerlekler: 20 cm çap = yarıçap 0.1 metre, biraz büyütmek istersen 0.15 yapabilirsin
-	wheelRadius := 0.15
+	wheelRadius := 0.30
 	wheel := g.makeWheel(jel.Vec2{X: 3.8, Y: 2.5}, wheelRadius, 16)
 	wheel.BaseBody.MaterialID = matWheel
 	wheel.GetBaseBody().UserData = "tekerlek"

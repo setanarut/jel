@@ -41,11 +41,11 @@ func CarTire() jel.PressureBodyOptions {
 			// Arabanın gövdesini (3.0 * 9 nokta = 27 birim) taşıyabilmesi için kütlesi 1.0 kalabilir.
 			MassPerPoint: 1.0,
 
-			ShapeMatching:       false,
-			ShapeMatchStiffness: 500,
+			ShapeMatching:       true,
+			ShapeMatchStiffness: 1500,
 			ShapeMatchDamping:   50,
 		},
 		// Hacim küçük olduğu için 20-30 arası bir basınç tekerleği şişkin tutmaya fazlasıyla yetecektir.
-		GasPressure: 10.0,
+		GasPressure: 1.0,
 	}
 }
