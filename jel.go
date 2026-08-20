@@ -583,10 +583,13 @@ func (j *WheelJoint) ApplyMotor() {
 	if j.MotorTorque == 0 {
 		return
 	}
+
 	wheelPMs := j.BodyWheel.GetPointMasses()
 	wheelBase := j.BodyWheel.GetBaseBody()
 	carPMs := j.BodyCar.GetPointMasses()
 	carBase := j.BodyCar.GetBaseBody()
+
+	// 1. TEKERLEĞE (WHEEL) TORK UYGULAMA KISMI
 	if j.WheelPoints == nil {
 		anchorWheel := wheelBase.DerivedPos
 		torquePerPoint := j.MotorTorque / float64(len(wheelPMs))
@@ -618,35 +621,22 @@ func (j *WheelJoint) ApplyMotor() {
 			}
 		}
 	}
-	if j.CarPoints == nil {
-		anchorCar := carBase.DerivedPos
-		reactionTorquePerPoint := -j.MotorTorque / float64(len(carPMs))
-		for i := range carPMs {
-			pm := &carPMs[i]
-			dir := pm.Pos.Sub(anchorCar)
-			r := dir.Mag()
-			if r > epsilonDistance {
-				tangent := dir.PerpNeg().DivS(r)
-				forceMag := reactionTorquePerPoint / r
-				pm.Force = pm.Force.Add(tangent.Scale(forceMag))
-			}
-		}
-	} else if len(j.CarPoints) > 0 {
-		anchorCar := Vec2{}
-		for _, idx := range j.CarPoints {
-			anchorCar = anchorCar.Add(carPMs[idx].Pos)
-		}
-		anchorCar = anchorCar.DivS(float64(len(j.CarPoints)))
-		reactionTorquePerPoint := -j.MotorTorque / float64(len(j.CarPoints))
-		for _, idx := range j.CarPoints {
-			pm := &carPMs[idx]
-			dir := pm.Pos.Sub(anchorCar)
-			r := dir.Mag()
-			if r > epsilonDistance {
-				tangent := dir.PerpNeg().DivS(r)
-				forceMag := reactionTorquePerPoint / r
-				pm.Force = pm.Force.Add(tangent.Scale(forceMag))
-			}
+
+	// 2. ARABAYA (CAR) TERS TEPKİ TORKU UYGULAMA KISMI (DÜZELTİLDİ)
+	// Motorun ters tepkisi arabanın sadece bağlanan dingil noktalarına (CarPoints) değil,
+	// tüm gövdesine ve ana ağırlık merkezine (DerivedPos) göre uygulanmalıdır.
+	// Bu, 'r' değerinin sıfıra yaklaşıp patlama yapmasını engeller.
+	anchorCar := carBase.DerivedPos
+	reactionTorquePerPoint := -j.MotorTorque / float64(len(carPMs))
+
+	for i := range carPMs {
+		pm := &carPMs[i]
+		dir := pm.Pos.Sub(anchorCar)
+		r := dir.Mag()
+		if r > epsilonDistance {
+			tangent := dir.PerpNeg().DivS(r)
+			forceMag := reactionTorquePerPoint / r
+			pm.Force = pm.Force.Add(tangent.Scale(forceMag))
 		}
 	}
 }

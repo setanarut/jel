@@ -33,11 +33,8 @@ func NewGame(ppm float64) *Game {
 }
 
 func (g *Game) Initalize() {
-	// g.renderer.ShowSpring = true
-	// g.renderer.ShowPointMassIndices = true
-	// g.renderer.ShowPointMassDots = true
-	// g.renderer.ShowStrokeGlobalShape = true
-	g.renderer.ShowFillPointMasses = true
+	g.renderer.ShowSpring = true
+	// g.renderer.ShowFillPointMasses = true
 	g.renderer.ShowStrokePointMasses = true
 	g.renderer.So.Width = 3
 
@@ -51,37 +48,37 @@ func (g *Game) Initalize() {
 		return true
 	})
 
-	// Kutu: 30 cm = 0.3 metre
-	carSize := jel.Vec2{2, 0.5}
-	car := g.makeBox(jel.Vec2{2, 2}, carSize)
-	car.AddInternalSpring(0, 4, presets.Jelly)
-	car.AddInternalSpring(6, 2, presets.Jelly)
-	// car.AddInternalSpring(1, 5, presets.Jelly)
-	// car.IsPinned = true
+	// Araba Gövdesini Oluştur
+	car := g.makeCarChassis(jel.Vec2{X: 4, Y: 2})
 	car.GetBaseBody().UserData = "araba"
 	car.BaseBody.MaterialID = matCar
 
-	matWheel := g.world.AddMaterial(1, 0.3, func(bodyA jel.Body, pmA *jel.PointMass, bodyB jel.Body, pmB1 *jel.PointMass, pmB2 *jel.PointMass, hitPt jel.Vec2, normSpeed float64) bool {
+	matWheel := g.world.AddMaterial(1, 0, func(bodyA jel.Body, pmA *jel.PointMass, bodyB jel.Body, pmB1 *jel.PointMass, pmB2 *jel.PointMass, hitPt jel.Vec2, normSpeed float64) bool {
 		if bodyB.GetBaseBody().UserData == "araba" {
+			return false
+		}
+		if bodyB.GetBaseBody().UserData == "tekerlek" {
 			return false
 		}
 		return true
 	})
-	// Tekerlek: 20 cm çap = yarıçap 0.1 metre
-	wheelRadius := 0.1
-	wheel := g.makeWheel(jel.Vec2{2, 1.85}, wheelRadius, 12)
+
+	// Tekerlekler: 20 cm çap = yarıçap 0.1 metre, biraz büyütmek istersen 0.15 yapabilirsin
+	wheelRadius := 0.15
+	wheel := g.makeWheel(jel.Vec2{X: 3.8, Y: 2.5}, wheelRadius, 16)
 	wheel.BaseBody.MaterialID = matWheel
 	wheel.GetBaseBody().UserData = "tekerlek"
-	// Tekerlek: 20 cm çap = yarıçap 0.1 metre
-	wheel2 := g.makeWheel(jel.Vec2{2, 1.85}, wheelRadius, 12)
+
+	wheel2 := g.makeWheel(jel.Vec2{X: 5.2, Y: 2.5}, wheelRadius, 16)
 	wheel2.BaseBody.MaterialID = matWheel
 	wheel2.GetBaseBody().UserData = "tekerlek"
 
-	// Tekerleği arabanın altına bağla
-	wj := jel.NewWheelJoint(car, wheel, []int{0, 2, 3}, nil)
-	wj2 := jel.NewWheelJoint(car, wheel2, []int{3, 4, 6}, nil)
-	wj.MotorTorque = 5
-	wj2.MotorTorque = 5
+	// Tekerlekleri arabanın altındaki spesifik noktalara bağla
+	// Arka tekerlek (indeks 2 ve 3)
+	wj := jel.NewWheelJoint(car, wheel, []int{2, 3}, nil)
+	// Ön tekerlek (indeks 4 ve 5)
+	wj2 := jel.NewWheelJoint(car, wheel2, []int{4, 5}, nil)
+
 	g.world.AddWheelJoint(wj)
 	g.world.AddWheelJoint(wj2)
 
@@ -122,58 +119,34 @@ func (g *Game) HandleMouseDragForcePoint() {
 		return
 	}
 
-	const stiffness = 200.0
+	const stiffness = 500.0
 	const damping = 20.0
 
 	pm := &g.dragBody.GetPointMasses()[g.dragPoint]
 	displacement := g.targetPos.Sub(pm.Pos)
 	springForce := displacement.Scale(stiffness)
 	dampingForce := pm.Vel.Scale(-damping)
-	pm.Force = pm.Force.Add(springForce.Add(dampingForce))
-}
-
-func (g *Game) handleMouseDragAABBBaseShape() {
-	g.targetPos = g.screenToWorld(CursorPositionVec2())
-
-	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
-		for _, b := range g.world.Bodies {
-			if b.GetAABB().Contains(g.targetPos) {
-				g.dragBody = b
-				g.isDragging = true
-				g.prevTarget = g.targetPos
-				body := b.GetBaseBody()
-				g.grabOffset = body.DerivedPos.Sub(g.targetPos)
-				break
-			}
-		}
-	}
-
-	if inpututil.IsMouseButtonJustReleased(ebiten.MouseButtonLeft) {
-		g.isDragging = false
-		g.dragBody = nil
-	}
-
-	if !g.isDragging || g.dragBody == nil {
-		return
-	}
-
-	desiredPos := g.targetPos.Add(g.grabOffset)
-	mouseVel := g.targetPos.Sub(g.prevTarget).DivS(timeStep)
-
-	body := g.dragBody.GetBaseBody()
-	body.SetPositionAngleScale(desiredPos, body.DerivedAngle, body.Scale)
-
-	for i := range body.PointMasses {
-		body.PointMasses[i].Vel = mouseVel
-	}
-
-	g.prevTarget = g.targetPos
+	pm.Force = pm.Force.Add(springForce.Add(dampingForce)).Scale(10)
 }
 
 func (g *Game) Update() error {
 	g.world.Update(timeStep)
 	g.HandleMouseDragForcePoint()
-	// g.handleMouseDragAABBBaseShape()
+
+	// KLAVYE İLE GAZ KONTROLÜ
+	torque := 0.0
+	if ebiten.IsKeyPressed(ebiten.KeyRight) {
+		torque = 6.0 // İleri gitmek için tork
+	} else if ebiten.IsKeyPressed(ebiten.KeyLeft) {
+		torque = -6.0 // Geri gitmek / Fren için tork
+	}
+
+	// Torku world içindeki WheelJoint'lere uygula
+	if len(g.world.Joints) >= 2 {
+		g.world.Joints[0].MotorTorque = torque // Arka tekerlek
+		g.world.Joints[1].MotorTorque = torque // Ön tekerlek (4 çeker yapmak istersen. Sadece arkadan itiş için 1. indexi 0 bırakabilirsin)
+	}
+
 	return nil
 }
 
@@ -199,7 +172,7 @@ func getClosestPointMass(world *jel.World, cursor jel.Vec2, maxDist float64) (je
 
 func main() {
 	game := NewGame(100)
-	ebiten.SetWindowTitle("jell Physics")
+	ebiten.SetWindowTitle("jell Physics - Car Demo")
 	ebiten.SetWindowSize(int(game.ScreenSize.X), int(game.ScreenSize.Y))
 	if err := ebiten.RunGame(game); err != nil {
 		log.Fatal(err)
@@ -237,47 +210,61 @@ func (g *Game) makeWalls(materialID int) {
 	}
 
 	bottomPos := jel.Vec2{X: g.WorldSize.X / 2.0, Y: g.WorldSize.Y - margin + ht}
-	bottom := jel.NewStaticBody(g.world, jel.NewPolygon(horizontalVerts), bottomPos, 0, jel.One)
+	bottom := jel.NewStaticBody(g.world, jel.NewPolygon(horizontalVerts), bottomPos, 0, jel.Vec2{X: 1, Y: 1})
 	bottom.MaterialID = materialID
 	bottom.UserData = "zemin"
 
 	topPos := jel.Vec2{X: g.WorldSize.X / 2.0, Y: margin - ht}
-	top := jel.NewStaticBody(g.world, jel.NewPolygon(horizontalVerts), topPos, 0, jel.One)
+	top := jel.NewStaticBody(g.world, jel.NewPolygon(horizontalVerts), topPos, 0, jel.Vec2{X: 1, Y: 1})
 	top.UserData = "zemin"
 	top.MaterialID = materialID
 
 	leftPos := jel.Vec2{X: margin - ht, Y: g.WorldSize.Y / 2.0}
-	left := jel.NewStaticBody(g.world, jel.NewPolygon(verticalVerts), leftPos, 0, jel.One)
+	left := jel.NewStaticBody(g.world, jel.NewPolygon(verticalVerts), leftPos, 0, jel.Vec2{X: 1, Y: 1})
 	left.UserData = "zemin"
 	left.MaterialID = materialID
 
 	rightPos := jel.Vec2{X: g.WorldSize.X - margin + ht, Y: g.WorldSize.Y / 2.0}
-	right := jel.NewStaticBody(g.world, jel.NewPolygon(verticalVerts), rightPos, 0, jel.One)
+	right := jel.NewStaticBody(g.world, jel.NewPolygon(verticalVerts), rightPos, 0, jel.Vec2{X: 1, Y: 1})
 	right.UserData = "zemin"
 	right.MaterialID = materialID
 }
 
-func (g *Game) makeBox(pos jel.Vec2, size jel.Vec2) *jel.SpringBody {
-	// verts := []jel.Vec2{
-	// 	{X: 0, Y: 0},
-	// 	{X: 0, Y: size.Y},
-	// 	{X: size.X, Y: size.Y},
-	// 	{X: size.X, Y: 0},
-	// }
+func (g *Game) makeCarChassis(pos jel.Vec2) *jel.SpringBody {
+	width := 2.4
+	height := 0.6
 
 	verts := []jel.Vec2{
-		{X: 0, Y: 0},               // sol alt
-		{X: 0, Y: size.Y / 2},      // sol orta
-		{X: 0, Y: size.Y},          // sol üst
-		{X: size.X / 2, Y: size.Y}, // üst orta
-		{X: size.X, Y: size.Y},     // sağ üst
-		{X: size.X, Y: size.Y / 2}, // sağ orta
-		{X: size.X, Y: 0},          // sağ alt
-		{X: size.X / 2, Y: 0},      // alt orta
+		{X: 0, Y: 0},                 // 0: Sol Üst (Tavan)
+		{X: 0, Y: height},            // 1: Sol Alt (Tampon)
+		{X: width * 0.20, Y: height}, // 2: Arka Tekerlek Bağlantı - Arka
+		{X: width * 0.40, Y: height}, // 3: Arka Tekerlek Bağlantı - Ön
+		{X: width * 0.60, Y: height}, // 4: Ön Tekerlek Bağlantı - Arka
+		{X: width * 0.80, Y: height}, // 5: Ön Tekerlek Bağlantı - Ön
+		{X: width, Y: height},        // 6: Sağ Alt (Tampon)
+		{X: width, Y: height * 0.4},  // 7: Kaput
+		{X: width * 0.7, Y: 0},       // 8: Tavan Ön Cam Birleşimi
+	}
+
+	opts := jel.SpringBodyOptions{
+		SpringMat: jel.SpringMat{
+			Stiffness: 800.0,
+			Damping:   30.0,
+		},
+		MassPerPoint: 3.0,
+
+		ShapeMatching:       true,
+		ShapeMatchStiffness: 2000.0,
+		ShapeMatchDamping:   50.0,
 	}
 
 	cs := jel.NewPolygon(verts)
-	sb := jel.NewSpringBody(g.world, cs, presets.Jell(), pos, 0, jel.One)
+	sb := jel.NewSpringBody(g.world, cs, opts, pos, 0, jel.Vec2{X: 1, Y: 1})
+
+	// Ekstra rijitlik için gövdenin uzak köşelerini çapraz yaylarla bağlayalım
+	sb.AddInternalSpring(0, 6, opts.SpringMat)
+	sb.AddInternalSpring(1, 8, opts.SpringMat)
+
 	return sb
 }
 
@@ -297,7 +284,7 @@ func (g *Game) makeWheel(pos jel.Vec2, r float64, n int) *jel.PressureBody {
 		presets.CarTire(),
 		pos,
 		0,
-		jel.One,
+		jel.Vec2{X: 1, Y: 1},
 	)
 	return b
 }
@@ -312,14 +299,4 @@ func randPos(bounds jel.Vec2, margin float64) jel.Vec2 {
 func CursorPositionVec2() jel.Vec2 {
 	x, y := ebiten.CursorPosition()
 	return jel.Vec2{X: float64(x), Y: float64(y)}
-}
-
-func (g *Game) makeBoxGrid(startPixel jel.Vec2, cols, rows int, boxW, boxH, gap float64) {
-	for row := range rows {
-		for col := range cols {
-			x := startPixel.X + float64(col)*(boxW+gap)
-			y := startPixel.Y + float64(row)*(boxH+gap)
-			g.makeBox(jel.Vec2{X: x, Y: y}, jel.Vec2{boxW, boxH})
-		}
-	}
 }

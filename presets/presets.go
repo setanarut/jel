@@ -35,12 +35,17 @@ func Jell() jel.SpringBodyOptions {
 func CarTire() jel.PressureBodyOptions {
 	return jel.PressureBodyOptions{
 		SpringBodyOptions: jel.SpringBodyOptions{
-			SpringMat:           jel.SpringMat{300, 10}, // sert yay (Stiffness, Damping)
-			MassPerPoint:        0.1,
-			ShapeMatchStiffness: 100,
+			// Stiffness'i ÇOK YÜKSEK tutuyoruz ki dış yüzey beton gibi/çelik kuşaklı lastik gibi olsun, esnemesin.
+			SpringMat: jel.SpringMat{Stiffness: 1500.0, Damping: 40.0},
+
+			// Arabanın gövdesini (3.0 * 9 nokta = 27 birim) taşıyabilmesi için kütlesi 1.0 kalabilir.
+			MassPerPoint: 1.0,
+
+			ShapeMatching:       false,
+			ShapeMatchStiffness: 500,
 			ShapeMatchDamping:   50,
-			ShapeMatching:       true,
 		},
-		GasPressure: 10,
+		// Hacim küçük olduğu için 20-30 arası bir basınç tekerleği şişkin tutmaya fazlasıyla yetecektir.
+		GasPressure: 10.0,
 	}
 }
