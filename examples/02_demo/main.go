@@ -27,64 +27,25 @@ func NewGame(ppm float64) *Game {
 	g.renderer = common.NewRenderer(ppm)
 	g.renderer.PixelsPerMeter = ppm
 	g.world.SetWorldLimits(jel.Vec2{}, g.WorldSize)
-	g.world.Iterations = 8
+	g.world.Iterations = 10
+	g.world.CalculateCorrectionAndThreshold(0.001)
 	g.Initalize()
 	return g
 }
 
 func (g *Game) Initalize() {
-	// g.renderer.ShowSpring = true
-	g.renderer.ShowFillPointMasses = true
-	g.renderer.ShowStrokePointMasses = true
-	// g.renderer.ShowPointMassDots = true
+	g.renderer.ShowSpring = true
+	// g.renderer.ShowFillPointMasses = true
+	// g.renderer.ShowStrokePointMasses = true
+	g.renderer.ShowPointMassDots = true
+	g.world.CalculateCorrectionAndThreshold(1.4)
 
 	g.renderer.So.Width = 3
+	g.makeStar(jel.Vec2{X: 4, Y: 2}, 10, 0.5)
+	g.makeStar(jel.Vec2{X: 5, Y: 2}, 10, 0.5)
+	// star.BaseBody.MaterialID = g.world.AddMaterial(0.8, 0.6, jel.CollideFunc)
 
-	// Materyaller
-	matFloor := g.world.AddMaterial(1, 0., jel.CollideFunc)
-
-	matCar := g.world.AddMaterial(1, 0, func(bodyA jel.Body, pmA *jel.PointMass, bodyB jel.Body, pmB1 *jel.PointMass, pmB2 *jel.PointMass, hitPt jel.Vec2, normSpeed float64) bool {
-		if bodyB.GetBaseBody().UserData == "tekerlek" {
-			return false
-		}
-		return true
-	})
-
-	// Araba Gövdesini Oluştur
-	car := g.makeCarChassis(jel.Vec2{X: 4, Y: 2})
-	car.GetBaseBody().UserData = "araba"
-	car.BaseBody.MaterialID = matCar
-
-	matWheel := g.world.AddMaterial(1, 0, func(bodyA jel.Body, pmA *jel.PointMass, bodyB jel.Body, pmB1 *jel.PointMass, pmB2 *jel.PointMass, hitPt jel.Vec2, normSpeed float64) bool {
-		if bodyB.GetBaseBody().UserData == "araba" {
-			return false
-		}
-		if bodyB.GetBaseBody().UserData == "tekerlek" {
-			return false
-		}
-		return true
-	})
-
-	// Tekerlekler: 20 cm çap = yarıçap 0.1 metre, biraz büyütmek istersen 0.15 yapabilirsin
-	wheelRadius := 0.30
-	wheel := g.makeWheel(jel.Vec2{X: 3.8, Y: 2.5}, wheelRadius, 16)
-	wheel.BaseBody.MaterialID = matWheel
-	wheel.GetBaseBody().UserData = "tekerlek"
-
-	wheel2 := g.makeWheel(jel.Vec2{X: 5.2, Y: 2.5}, wheelRadius, 16)
-	wheel2.BaseBody.MaterialID = matWheel
-	wheel2.GetBaseBody().UserData = "tekerlek"
-
-	// Tekerlekleri arabanın altındaki spesifik noktalara bağla
-	// Arka tekerlek (indeks 2 ve 3)
-	wj := jel.NewWheelJoint(car, wheel, []int{2, 3}, nil)
-	// Ön tekerlek (indeks 4 ve 5)
-	wj2 := jel.NewWheelJoint(car, wheel2, []int{4, 5}, nil)
-
-	g.world.AddWheelJoint(wj)
-	g.world.AddWheelJoint(wj2)
-
-	g.makeWalls(matFloor)
+	g.makeWalls(g.world.AddMaterial(1, 0, jel.CollideFunc))
 }
 
 type Game struct {
@@ -241,47 +202,77 @@ func (g *Game) makeWalls(materialID int) {
 	right.MaterialID = materialID
 }
 
-func (g *Game) makeCarChassis(pos jel.Vec2) *jel.SpringBody {
-	width := 2.4
-	height := 0.6
+func (g *Game) makeStar(pos jel.Vec2, n int, outerRadius float64) *jel.SpringBody {
+	const tips = 5 // sabit: her zaman 5 uçlu yıldız
+	const innerRatio = 0.45
+	innerRadius := outerRadius * innerRatio
 
-	verts := []jel.Vec2{
-		{X: 0, Y: 0},                 // 0: Sol Üst (Tavan)
-		{X: 0, Y: height},            // 1: Sol Alt (Tampon)
-		{X: width * 0.20, Y: height}, // 2: Arka Tekerlek Bağlantı - Arka
-		{X: width * 0.40, Y: height}, // 3: Arka Tekerlek Bağlantı - Ön
-		{X: width * 0.60, Y: height}, // 4: Ön Tekerlek Bağlantı - Arka
-		{X: width * 0.80, Y: height}, // 5: Ön Tekerlek Bağlantı - Ön
-		{X: width, Y: height},        // 6: Sağ Alt (Tampon)
-		{X: width, Y: height * 0.4},  // 7: Kaput
-		{X: width * 0.7, Y: 0},       // 8: Tavan Ön Cam Birleşimi
+	if n < tips*2 {
+		n = tips * 2
+	}
+
+	// Önce 5 uçlu yıldızın 10 temel köşesini (5 uç + 5 çentik) hesapla.
+	baseCount := tips * 2
+	base := make([]jel.Vec2, baseCount)
+	angleStep := math.Pi / float64(tips)
+	startAngle := -math.Pi / 2 // ilk uç yukarı baksın
+
+	for i := 0; i < baseCount; i++ {
+		angle := startAngle + float64(i)*angleStep
+		r := outerRadius
+		if i%2 == 1 {
+			r = innerRadius
+		}
+		base[i] = jel.Vec2{
+			X: r * math.Cos(angle),
+			Y: r * math.Sin(angle),
+		}
+	}
+
+	// n, toplam nokta sayısı: temel 10 köşeyi n noktaya böl,
+	// kenarlar boyunca eşit aralıklarla ara noktalar (interpolasyon) ekle.
+	verts := make([]jel.Vec2, 0, n)
+	for i := 0; i < n; i++ {
+		// base üzerinde hangi kenarda olduğumuzu bul (kesirli index)
+		t := float64(i) / float64(n) * float64(baseCount)
+		idx := int(math.Floor(t))
+		frac := t - float64(idx)
+
+		a := base[idx%baseCount]
+		b := base[(idx+1)%baseCount]
+
+		verts = append(verts, jel.Vec2{
+			X: a.X + (b.X-a.X)*frac,
+			Y: a.Y + (b.Y-a.Y)*frac,
+		})
 	}
 
 	opts := jel.SpringBodyOptions{
 		SpringMat: jel.SpringMat{
-			Stiffness: 800.0,
-			// Titremeyi kesmek için sönümleme artırıldı
-			Damping: 60.0,
+			Stiffness: 200.0,
+			Damping:   50.0,
 		},
-		MassPerPoint: 1.0,
+		MassPerPoint: 0.4,
 
-		ShapeMatching: true,
-		// Aşırı yüksek stiffness sapıtmaya yol açar, dengeledik
-		ShapeMatchStiffness: 1200.0,
-		// Şekli korurken oluşan mikro titreşimleri emmesi için yüksek sönümleme
-		ShapeMatchDamping: 80.0,
+		ShapeMatching:       true,
+		ShapeMatchStiffness: 500.0,
+		ShapeMatchDamping:   100.0,
 	}
 
 	cs := jel.NewPolygon(verts)
 	sb := jel.NewSpringBody(g.world, cs, opts, pos, 0, jel.Vec2{X: 1, Y: 1})
 
-	// Kafes (Truss) Sistemi: 5 Adet İç Çapraz Yay (Cross-Bracing)
-	// Bu yaylar, dış kenarların içe çökmesini fiziksel olarak kilitler.
-	sb.AddInternalSpring(0, 6, opts.SpringMat) // Sol üstten -> Sağ alta (Ana Çapraz)
-	sb.AddInternalSpring(1, 8, opts.SpringMat) // Sol alttan -> Ön cama (İkinci Ana Çapraz)
-	sb.AddInternalSpring(0, 4, opts.SpringMat) // Sol üstten -> Ön tekerlek arkasına
-	sb.AddInternalSpring(8, 2, opts.SpringMat) // Ön camdan -> Arka tekerlek arkasına
-	sb.AddInternalSpring(1, 7, opts.SpringMat) // Sol alttan -> Kaputa
+	// // İç çapraz yaylar: her uca en yakın verts index'i bularak,
+	// // karşı uca bağlıyoruz (şeklin çökmesini engellemek için).
+	// for i := 0; i < tips; i++ {
+	// 	tipT := float64(i*2) / float64(baseCount) * float64(n)
+	// 	oppT := float64((i*2+tips)%baseCount) / float64(baseCount) * float64(n)
+	// 	a := int(math.Round(tipT)) % n
+	// 	b := int(math.Round(oppT)) % n
+	// 	if a != b {
+	// 		sb.AddInternalSpring(a, b, opts.SpringMat)
+	// 	}
+	// }
 
 	return sb
 }

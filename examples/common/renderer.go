@@ -15,6 +15,12 @@ func init() {
 	ebiten.SetScreenClearedEveryFrame(false)
 }
 
+// PathBatch, aynı renge sahip olan path'leri gruplamak için kullanılır.
+type PathBatch struct {
+	Path *vector.Path
+	Used bool
+}
+
 type Renderer struct {
 	ShowAABB                bool
 	ShowFillPointMasses     bool
@@ -31,17 +37,20 @@ type Renderer struct {
 	DrawOffset     jel.Vec2
 	PixelsPerMeter float64
 
-	path   vector.Path
 	So     vector.StrokeOptions
 	SoAABB vector.StrokeOptions
 	Dpo    vector.DrawPathOptions
 	Fo     vector.FillOptions
+
+	// Batching için path'ler
+	aabbPath      vector.Path
+	fillBatches   map[color.RGBA]*PathBatch
+	strokeBatches map[color.RGBA]*PathBatch
 }
 
 func NewRenderer(pixelsPerMeter float64) *Renderer {
 	return &Renderer{
 		Antialias: true,
-		path:      vector.Path{},
 		So: vector.StrokeOptions{
 			Width:      1,
 			LineCap:    0,
@@ -52,6 +61,9 @@ func NewRenderer(pixelsPerMeter float64) *Renderer {
 		Dpo:            vector.DrawPathOptions{},
 		Fo:             vector.FillOptions{},
 		PixelsPerMeter: pixelsPerMeter,
+
+		fillBatches:   make(map[color.RGBA]*PathBatch),
+		strokeBatches: make(map[color.RGBA]*PathBatch),
 	}
 }
 
@@ -71,32 +83,96 @@ func rgb(r, g, b uint8) color.RGBA {
 	return color.RGBA{r, g, b, 255}
 }
 
+// getFillPath, verilen renk için batch path'i döndürür.
+func (r *Renderer) getFillPath(clr color.RGBA) *vector.Path {
+	b, ok := r.fillBatches[clr]
+	if !ok {
+		b = &PathBatch{Path: &vector.Path{}}
+		r.fillBatches[clr] = b
+	}
+	b.Used = true
+	return b.Path
+}
+
+// getStrokePath, verilen renk için batch path'i döndürür.
+func (r *Renderer) getStrokePath(clr color.RGBA) *vector.Path {
+	b, ok := r.strokeBatches[clr]
+	if !ok {
+		b = &PathBatch{Path: &vector.Path{}}
+		r.strokeBatches[clr] = b
+	}
+	b.Used = true
+	return b.Path
+}
+
 func (r *Renderer) Draw(screen *ebiten.Image, world *jel.World) {
 	screen.Fill(colorBackground)
 
+	// Her frame öncesi path'leri sıfırla
+	r.aabbPath.Reset()
+	for _, b := range r.fillBatches {
+		b.Used = false
+		b.Path.Reset()
+	}
+	for _, b := range r.strokeBatches {
+		b.Used = false
+		b.Path.Reset()
+	}
+
+	// Objeleri dönüp path'leri topla (Draw Call YAPMA, Sadece geometri oluştur)
 	for _, body := range world.Bodies {
 		if r.ShowAABB {
-			r.strokeAABB(screen, body)
+			r.strokeAABB(body)
 		}
 
 		if r.ShowFillPointMasses || r.ShowStrokePointMasses {
-			r.drawPointMasses(screen, body)
+			r.drawPointMasses(body)
 		}
 
 		if r.ShowFillGlobalShape || r.ShowStrokeGlobalShape {
-			r.drawGlobalShape(screen, body)
+			r.drawGlobalShape(body)
 		}
 
 		if r.ShowPointMassDots {
-			r.fillPointMassDots(screen, body)
+			r.fillPointMassDots(body)
 		}
 
 		if r.ShowSpring {
-			r.drawSprings(screen, body)
+			r.drawSprings(body)
 		}
 
 		if r.ShowPointMassIndices {
+			// Yazılar doğrudan çizilebilir, text batching'i ebiten kendisi hallediyor.
 			r.drawPointMassIndices(screen, body)
+		}
+	}
+
+	// ----------------------------------------------------
+	// TOPLU ÇİZİM (BATCH RENDERING) AŞAMASI
+	// ----------------------------------------------------
+
+	// AABB'leri tek seferde çiz
+	if r.ShowAABB {
+		r.Dpo.ColorScale.Reset()
+		r.Dpo.ColorScale.ScaleWithColor(colorAABB)
+		vector.StrokePath(screen, &r.aabbPath, &r.SoAABB, &r.Dpo)
+	}
+
+	// Dolguları tek seferde (renk başına 1 draw call) çiz
+	for clr, b := range r.fillBatches {
+		if b.Used {
+			r.Dpo.ColorScale.Reset()
+			r.Dpo.ColorScale.ScaleWithColor(clr)
+			vector.FillPath(screen, b.Path, &r.Fo, &r.Dpo)
+		}
+	}
+
+	// Çizgileri tek seferde (renk başına 1 draw call) çiz
+	for clr, b := range r.strokeBatches {
+		if b.Used {
+			r.Dpo.ColorScale.Reset()
+			r.Dpo.ColorScale.ScaleWithColor(clr)
+			vector.StrokePath(screen, b.Path, &r.So, &r.Dpo)
 		}
 	}
 
@@ -106,89 +182,87 @@ func (r *Renderer) Draw(screen *ebiten.Image, world *jel.World) {
 	)
 }
 
-// drawPointMasses builds a single path from point masses and draws fill/stroke.
-func (r *Renderer) drawPointMasses(screen *ebiten.Image, body jel.Body) {
-	if !r.ShowFillPointMasses && !r.ShowStrokePointMasses {
-		return
-	}
-
+func (r *Renderer) drawPointMasses(body jel.Body) {
 	pts := body.GetPointMasses()
 	if len(pts) < 3 {
 		return
 	}
 
-	r.path.Reset()
-	for i, pm := range pts {
-		pos := r.WorldToScreen(pm.Pos).Add(r.DrawOffset)
-		if i == 0 {
-			r.path.MoveTo(float32(pos.X), float32(pos.Y))
-		} else {
-			r.path.LineTo(float32(pos.X), float32(pos.Y))
-		}
-	}
-	r.path.Close()
-
 	if r.ShowFillPointMasses {
 		clr := r.getBodyColor(body, colorFillPointMasses)
-		r.Dpo.ColorScale.Reset()
-		r.Dpo.ColorScale.ScaleWithColor(clr)
-		vector.FillPath(screen, &r.path, &r.Fo, &r.Dpo)
+		p := r.getFillPath(clr)
+		for i, pm := range pts {
+			pos := r.WorldToScreen(pm.Pos).Add(r.DrawOffset)
+			if i == 0 {
+				p.MoveTo(float32(pos.X), float32(pos.Y))
+			} else {
+				p.LineTo(float32(pos.X), float32(pos.Y))
+			}
+		}
+		p.Close()
 	}
 
 	if r.ShowStrokePointMasses {
 		clr := r.getBodyColor(body, colorStrokePointMasses)
-		r.Dpo.ColorScale.Reset()
-		r.Dpo.ColorScale.ScaleWithColor(clr)
-		vector.StrokePath(screen, &r.path, &r.So, &r.Dpo)
+		p := r.getStrokePath(clr)
+		for i, pm := range pts {
+			pos := r.WorldToScreen(pm.Pos).Add(r.DrawOffset)
+			if i == 0 {
+				p.MoveTo(float32(pos.X), float32(pos.Y))
+			} else {
+				p.LineTo(float32(pos.X), float32(pos.Y))
+			}
+		}
+		p.Close()
 	}
 }
 
-// drawGlobalShape builds a single path from global shape and draws fill/stroke.
-func (r *Renderer) drawGlobalShape(screen *ebiten.Image, body jel.Body) {
-	if !r.ShowFillGlobalShape && !r.ShowStrokeGlobalShape {
-		return
-	}
-
+func (r *Renderer) drawGlobalShape(body jel.Body) {
 	base := body.GetBaseBody()
 	if base == nil || base.GlobalShape == nil || len(base.GlobalShape) < 3 {
 		return
 	}
 
-	r.path.Reset()
-	for i, v := range base.GlobalShape {
-		pos := r.WorldToScreen(v).Add(r.DrawOffset)
-		if i == 0 {
-			r.path.MoveTo(float32(pos.X), float32(pos.Y))
-		} else {
-			r.path.LineTo(float32(pos.X), float32(pos.Y))
-		}
-	}
-	r.path.Close()
-
 	if r.ShowFillGlobalShape {
 		clr := r.getBodyColor(body, colorFillGlobalShape)
-		r.Dpo.ColorScale.Reset()
-		r.Dpo.ColorScale.ScaleWithColor(clr)
-		vector.FillPath(screen, &r.path, &r.Fo, &r.Dpo)
+		p := r.getFillPath(clr)
+		for i, v := range base.GlobalShape {
+			pos := r.WorldToScreen(v).Add(r.DrawOffset)
+			if i == 0 {
+				p.MoveTo(float32(pos.X), float32(pos.Y))
+			} else {
+				p.LineTo(float32(pos.X), float32(pos.Y))
+			}
+		}
+		p.Close()
 	}
 
 	if r.ShowStrokeGlobalShape {
 		clr := r.getBodyColor(body, colorStrokeGlobalShape)
-		r.Dpo.ColorScale.Reset()
-		r.Dpo.ColorScale.ScaleWithColor(clr)
-		vector.StrokePath(screen, &r.path, &r.So, &r.Dpo)
+		p := r.getStrokePath(clr)
+		for i, v := range base.GlobalShape {
+			pos := r.WorldToScreen(v).Add(r.DrawOffset)
+			if i == 0 {
+				p.MoveTo(float32(pos.X), float32(pos.Y))
+			} else {
+				p.LineTo(float32(pos.X), float32(pos.Y))
+			}
+		}
+		p.Close()
 	}
 }
 
-// fillPointMassDots draws small circles at each point mass.
-func (r *Renderer) fillPointMassDots(screen *ebiten.Image, body jel.Body) {
+func (r *Renderer) fillPointMassDots(body jel.Body) {
+	p := r.getFillPath(colorPointMassDots)
+	radius := r.So.Width * 1.5
 	for _, pm := range body.GetPointMasses() {
 		pos := r.WorldToScreen(pm.Pos).Add(r.DrawOffset)
-		vector.FillCircle(screen, float32(pos.X), float32(pos.Y), r.So.Width*1.5, colorPointMassDots, r.Antialias)
+		// vector.Clockwise kullanılarak hata giderildi
+		p.Arc(float32(pos.X), float32(pos.Y), float32(radius), 0, 2*math.Pi, vector.Clockwise)
+		p.Close()
 	}
 }
 
-// drawPointMassIndices prints indices above each point mass.
 func (r *Renderer) drawPointMassIndices(screen *ebiten.Image, body jel.Body) {
 	for i, pm := range body.GetPointMasses() {
 		pos := r.WorldToScreen(pm.Pos).Add(r.DrawOffset)
@@ -196,8 +270,7 @@ func (r *Renderer) drawPointMassIndices(screen *ebiten.Image, body jel.Body) {
 	}
 }
 
-// drawSprings draws internal springs with optional tension coloring.
-func (r *Renderer) drawSprings(screen *ebiten.Image, body jel.Body) {
+func (r *Renderer) drawSprings(body jel.Body) {
 	var sb *jel.SpringBody
 	switch v := body.(type) {
 	case *jel.SpringBody:
@@ -237,36 +310,27 @@ func (r *Renderer) drawSprings(screen *ebiten.Image, body jel.Body) {
 
 		aScreen := r.WorldToScreen(a.Pos).Add(r.DrawOffset)
 		bScreen := r.WorldToScreen(b.Pos).Add(r.DrawOffset)
-		vector.StrokeLine(
-			screen,
-			float32(aScreen.X), float32(aScreen.Y),
-			float32(bScreen.X), float32(bScreen.Y),
-			r.So.Width,
-			clr,
-			r.Antialias,
-		)
+
+		// Yayları stroke olarak path'e ekliyoruz (Close YOK çünkü bunlar çizgi)
+		p := r.getStrokePath(clr)
+		p.MoveTo(float32(aScreen.X), float32(aScreen.Y))
+		p.LineTo(float32(bScreen.X), float32(bScreen.Y))
 	}
 }
 
-// strokeAABB draws the AABB outline.
-func (r *Renderer) strokeAABB(screen *ebiten.Image, body jel.Body) {
+func (r *Renderer) strokeAABB(body jel.Body) {
 	corners := r.getAABBCorners(body.GetAABB())
-	r.path.Reset()
 	for i, corner := range corners {
 		pos := r.WorldToScreen(corner).Add(r.DrawOffset)
 		if i == 0 {
-			r.path.MoveTo(float32(pos.X), float32(pos.Y))
+			r.aabbPath.MoveTo(float32(pos.X), float32(pos.Y))
 		} else {
-			r.path.LineTo(float32(pos.X), float32(pos.Y))
+			r.aabbPath.LineTo(float32(pos.X), float32(pos.Y))
 		}
 	}
-	r.path.Close()
-	r.Dpo.ColorScale.Reset()
-	r.Dpo.ColorScale.ScaleWithColor(colorAABB)
-	vector.StrokePath(screen, &r.path, &r.SoAABB, &r.Dpo)
+	r.aabbPath.Close()
 }
 
-// getBodyColor returns appropriate color based on static flag and default color.
 func (r *Renderer) getBodyColor(body jel.Body, defaultColor color.RGBA) color.RGBA {
 	if r.ShowStatic && body.IsStatic() {
 		return colorStatic
