@@ -33,10 +33,10 @@ func NewGame(ppm float64) *Game {
 }
 
 func (g *Game) Initalize() {
-	// g.renderer.ShowSpring = true
-	g.renderer.ShowFillPointMasses = true
-	g.renderer.ShowStrokePointMasses = true
-	// g.renderer.ShowPointMassDots = true
+	g.renderer.ShowSpring = true
+	// g.renderer.ShowFillPointMasses = true
+	// g.renderer.ShowStrokePointMasses = true
+	g.renderer.ShowPointMassDots = true
 
 	g.renderer.So.Width = 3
 
