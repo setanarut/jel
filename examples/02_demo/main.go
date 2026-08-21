@@ -3,14 +3,12 @@ package main
 import (
 	"log"
 	"math"
-	"math/rand/v2"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 
 	"github.com/setanarut/jel"
 	"github.com/setanarut/jel/examples/common"
-	"github.com/setanarut/jel/presets"
 )
 
 const (
@@ -28,22 +26,20 @@ func NewGame(ppm float64) *Game {
 	g.renderer.PixelsPerMeter = ppm
 	g.world.SetWorldLimits(jel.Vec2{}, g.WorldSize)
 	g.world.Iterations = 10
-	g.world.CalculateCorrectionAndThreshold(0.001)
 	g.Initalize()
 	return g
 }
 
 func (g *Game) Initalize() {
-	g.renderer.ShowSpring = true
+	// g.renderer.ShowSpring = true
 	// g.renderer.ShowFillPointMasses = true
-	// g.renderer.ShowStrokePointMasses = true
+	g.renderer.ShowStrokePointMasses = true
 	g.renderer.ShowPointMassDots = true
-	g.world.CalculateCorrectionAndThreshold(1.4)
+	g.world.CalculateCorrectionAndThreshold(0.5)
 
 	g.renderer.So.Width = 3
 	g.makeStar(jel.Vec2{X: 4, Y: 2}, 10, 0.5)
 	g.makeStar(jel.Vec2{X: 5, Y: 2}, 10, 0.5)
-	// star.BaseBody.MaterialID = g.world.AddMaterial(0.8, 0.6, jel.CollideFunc)
 
 	g.makeWalls(g.world.AddMaterial(1, 0, jel.CollideFunc))
 }
@@ -262,46 +258,7 @@ func (g *Game) makeStar(pos jel.Vec2, n int, outerRadius float64) *jel.SpringBod
 	cs := jel.NewPolygon(verts)
 	sb := jel.NewSpringBody(g.world, cs, opts, pos, 0, jel.Vec2{X: 1, Y: 1})
 
-	// // İç çapraz yaylar: her uca en yakın verts index'i bularak,
-	// // karşı uca bağlıyoruz (şeklin çökmesini engellemek için).
-	// for i := 0; i < tips; i++ {
-	// 	tipT := float64(i*2) / float64(baseCount) * float64(n)
-	// 	oppT := float64((i*2+tips)%baseCount) / float64(baseCount) * float64(n)
-	// 	a := int(math.Round(tipT)) % n
-	// 	b := int(math.Round(oppT)) % n
-	// 	if a != b {
-	// 		sb.AddInternalSpring(a, b, opts.SpringMat)
-	// 	}
-	// }
-
 	return sb
-}
-func (g *Game) makeWheel(pos jel.Vec2, r float64, n int) *jel.PressureBody {
-	ballVerts := make([]jel.Vec2, 0, n)
-	for i := range n {
-		rad := -float64(i) * (2 * math.Pi / float64(n))
-		ballVerts = append(ballVerts, jel.Vec2{
-			X: math.Cos(rad) * r,
-			Y: math.Sin(rad) * r,
-		})
-	}
-	ballShape := jel.NewPolygon(ballVerts)
-	b := jel.NewPressureBody(
-		g.world,
-		ballShape,
-		presets.CarTire(),
-		pos,
-		0,
-		jel.Vec2{X: 1, Y: 1},
-	)
-	return b
-}
-
-func randPos(bounds jel.Vec2, margin float64) jel.Vec2 {
-	return jel.Vec2{
-		X: margin + rand.Float64()*(bounds.X-2*margin),
-		Y: margin + rand.Float64()*(bounds.Y-2*margin),
-	}
 }
 
 func CursorPositionVec2() jel.Vec2 {

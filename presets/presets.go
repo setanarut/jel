@@ -42,10 +42,10 @@ func CarTire() jel.PressureBodyOptions {
 			MassPerPoint: 1.0,
 
 			ShapeMatching:       true,
-			ShapeMatchStiffness: 1500,
+			ShapeMatchStiffness: 1000,
 			ShapeMatchDamping:   50,
 		},
 		// Hacim küçük olduğu için 20-30 arası bir basınç tekerleği şişkin tutmaya fazlasıyla yetecektir.
-		GasPressure: 1.0,
+		GasPressure: 10.0,
 	}
 }

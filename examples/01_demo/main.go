@@ -37,6 +37,7 @@ func (g *Game) Initalize() {
 	// g.renderer.ShowFillPointMasses = true
 	// g.renderer.ShowStrokePointMasses = true
 	g.renderer.ShowPointMassDots = true
+	g.renderer.ShowStrokeGlobalShape = true
 
 	g.renderer.So.Width = 3
 
