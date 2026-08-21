@@ -22,7 +22,7 @@ type Body interface {
 	GetPointMasses() []PointMass
 	derivePositionAndAngle(elapsed float64)
 	applyGravity(force Vec2)
-	accumulateInternalForces()
+	accumulateInternalForces(delta float64)
 	integrate(elapsed float64)
 	dampenVelocity()
 	updateAABB(elapsed float64, forceUpdate bool)
@@ -282,7 +282,7 @@ func (b *BaseBody) updateEdgeInfo() {
 		}
 	}
 }
-func (b *BaseBody) accumulateInternalForces() {}
+func (b *BaseBody) accumulateInternalForces(delta float64) {}
 func (b *BaseBody) applyGravity(gravity Vec2) {
 	if b.IgnoreGravity {
 		return
@@ -454,21 +454,22 @@ func (s *SpringBody) buildDefaultSprings() {
 		}
 	}
 }
-func (s *SpringBody) accumulateInternalForces() {
+func (s *SpringBody) accumulateInternalForces(delta float64) {
 	if s.Static || s.Kinematic {
 		return
 	}
-	s.BaseBody.accumulateInternalForces()
+	s.BaseBody.accumulateInternalForces(delta)
+
 	var forceOut Vec2
+
+	// Mevcut spring kuvvetleri
 	for i := range s.Springs {
 		spr := &s.Springs[i]
 		a := &s.PointMasses[spr.IndexA]
 		b := &s.PointMasses[spr.IndexB]
 		forceOut = CalculateSpringForce(
-			a.Pos,
-			a.Vel,
-			b.Pos,
-			b.Vel,
+			a.Pos, a.Vel,
+			b.Pos, b.Vel,
 			spr.RestLength,
 			spr.Stiffness,
 			spr.Damping,
@@ -476,22 +477,42 @@ func (s *SpringBody) accumulateInternalForces() {
 		a.Force = a.Force.Add(forceOut)
 		b.Force = b.Force.Sub(forceOut)
 	}
-	if s.ShapeMatching {
+
+	// Shape matching (C# mantığı ile)
+	if s.ShapeMatching && s.ShapeMatchStiffness > 0 {
+		// Global şekli güncelle
 		s.BaseShape.TransformVertices(s.DerivedPos, s.DerivedAngle, s.Scale, s.GlobalShape)
+
 		for i := range s.PointMasses {
 			p := &s.PointMasses[i]
-			if s.ShapeMatchStiffness > 0 {
-				if !s.Kinematic {
-					forceOut = CalculateSpringForce(p.Pos, p.Vel,
-						s.GlobalShape[i], p.Vel,
-						0.0, s.ShapeMatchStiffness, s.ShapeMatchDamping)
-				} else {
-					forceOut = CalculateSpringForce(p.Pos, p.Vel,
-						s.GlobalShape[i], Vec2{},
-						0.0, s.ShapeMatchStiffness, s.ShapeMatchDamping)
-				}
-				p.Force = p.Force.Add(forceOut)
+			targetPos := s.GlobalShape[i]
+
+			// Hedef hız = kütle merkezi hızı + dönme katkısı (ω × r)
+			r := targetPos.Sub(s.DerivedPos)
+			rotVel := Vec2{
+				X: -s.DerivedOmega * r.Y,
+				Y: s.DerivedOmega * r.X,
 			}
+			targetVel := s.DerivedVel.Add(rotVel)
+
+			if !s.Kinematic {
+				forceOut = CalculateSpringForce(
+					p.Pos, p.Vel,
+					targetPos, targetVel,
+					0.0,
+					s.ShapeMatchStiffness,
+					s.ShapeMatchDamping,
+				)
+			} else {
+				forceOut = CalculateSpringForce(
+					p.Pos, p.Vel,
+					targetPos, Vec2{},
+					0.0,
+					s.ShapeMatchStiffness,
+					s.ShapeMatchDamping,
+				)
+			}
+			p.Force = p.Force.Add(forceOut)
 		}
 	}
 }
@@ -529,8 +550,8 @@ func NewPressureBody(
 	}
 	return pb
 }
-func (p *PressureBody) accumulateInternalForces() {
-	p.SpringBody.accumulateInternalForces()
+func (p *PressureBody) accumulateInternalForces(e float64) {
+	p.SpringBody.accumulateInternalForces(e)
 	p.Volume = 0
 	var edge1, edge2, norm Vec2
 	l := len(p.PointMasses)
@@ -822,7 +843,7 @@ func (w *World) Update(delta float64) {
 			}
 			b.derivePositionAndAngle(subStepDelta)
 			b.applyGravity(w.Gravity)
-			b.accumulateInternalForces()
+			b.accumulateInternalForces(delta)
 			b.integrate(subStepDelta)
 			b.updateAABB(subStepDelta, false)
 			w.updateBodyBitmask(b)
