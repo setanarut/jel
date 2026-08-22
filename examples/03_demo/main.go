@@ -35,11 +35,12 @@ func (g *Game) Initalize() {
 	// g.renderer.ShowFillPointMasses = true
 	g.renderer.ShowStrokePointMasses = true
 	g.renderer.ShowPointMassDots = true
-	g.world.CalculateCorrectionAndThreshold(0.1)
+	g.world.CalculateCorrectionAndThreshold(0.5)
 
 	g.renderer.So.Width = 3
 	g.makeStar(jel.Vec2{X: 4, Y: 2}, 10, 0.5)
 	g.makeStar(jel.Vec2{X: 5, Y: 2}, 10, 0.5)
+	// b.Static = true
 
 	g.makeWalls(g.world.AddMaterial(1, 0, jel.CollideFunc))
 }
@@ -56,8 +57,6 @@ type Game struct {
 	prevTarget jel.Vec2
 	grabOffset jel.Vec2
 	PPM        float64
-	// Motorun anlık torkunu tutmak için yeni değişken
-	CurrentTorque float64
 }
 
 func (g *Game) HandleMouseDragForcePoint() {
@@ -80,8 +79,8 @@ func (g *Game) HandleMouseDragForcePoint() {
 		return
 	}
 
-	const stiffness = 500.0
-	const damping = 20.0
+	const stiffness = 100.0
+	const damping = 10.0
 
 	pm := &g.dragBody.GetPointMasses()[g.dragPoint]
 	displacement := g.targetPos.Sub(pm.Pos)
@@ -91,30 +90,8 @@ func (g *Game) HandleMouseDragForcePoint() {
 }
 
 func (g *Game) Update() error {
-	g.world.Update(timeStep)
 	g.HandleMouseDragForcePoint()
-
-	if ebiten.IsKeyPressed(ebiten.KeySpace) {
-		// Gaz: Torku artır, ama 10.0'ı geçmesine izin verme
-		g.CurrentTorque = max(min(g.CurrentTorque+0.2, 50.0), -10.0)
-	} else if ebiten.IsKeyPressed(ebiten.KeyLeft) {
-		// Geri/Fren: Torku azalt, ama -10.0'ın altına düşmesine izin verme
-		g.CurrentTorque = max(g.CurrentTorque-0.2, -10.0)
-	} else {
-		// Tuşa basılmıyorsa yavaşça sıfıra dön (Motor kompresyonu)
-		if g.CurrentTorque > 0 {
-			g.CurrentTorque = max(g.CurrentTorque-0.4, 0.0)
-		} else if g.CurrentTorque < 0 {
-			g.CurrentTorque = min(g.CurrentTorque+0.4, 0.0)
-		}
-	}
-
-	// Torku tekerleklere uygula
-	if len(g.world.Joints) >= 2 {
-		g.world.Joints[0].MotorTorque = g.CurrentTorque
-		g.world.Joints[1].MotorTorque = g.CurrentTorque
-	}
-
+	g.world.Update(timeStep)
 	return nil
 }
 
@@ -200,7 +177,7 @@ func (g *Game) makeWalls(materialID int) {
 
 func (g *Game) makeStar(pos jel.Vec2, n int, outerRadius float64) *jel.SpringBody {
 	const tips = 5 // sabit: her zaman 5 uçlu yıldız
-	const innerRatio = 0.45
+	const innerRatio = 0.9
 	innerRadius := outerRadius * innerRatio
 
 	if n < tips*2 {
