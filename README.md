@@ -47,7 +47,7 @@ world.AddJoint(joint)
 **Raycast** - Cast rays through the world to test line-of-sight or detect surfaces:
 
 ```go
-hitPoint, body := world.RayCast(start, end, bitmask, ignoreFunc)
+func (b *Body) Raycast(start, end Vec2) (closestHit Vec2, ok bool)
 ```
 
 **Collision** - Automatic collision detection between bodies with configurable:
