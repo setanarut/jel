@@ -54,6 +54,7 @@ world.AddJoint(joint)
 **Raycast** - Cast rays through the world to test line-of-sight or detect surfaces:
 
 ```go
+func (w *World) RayCast(start, end Vec2, bitmask Bitmask, ignoreTest func(*Body) bool) (retPt Vec2, body *Body) 
 func (b *Body) Raycast(start, end Vec2) (closestHit Vec2, ok bool)
 ```
 
