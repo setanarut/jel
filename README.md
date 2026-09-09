@@ -6,7 +6,7 @@
 
 ## Overview
 
-**jel** simulates deformable bodies made of connected point masses. Physics behavior comes from attachable **Components** (an extensible interface), bodies connect via **Joints**, and collision response varies by material group.
+**jel** simulates deformable bodies made of connected point masses. Physics behavior comes from attachable **Components** (an extensible interface), bodies connect via **Joints**, and collision resolution is per-material-pair. Use it for ragdolls, fabric, fluid bodies, or any soft-body effect.
 
 ## Components
 
@@ -26,6 +26,7 @@ Implement the `Component` interface to write your own.
 
 - **BodyJointLink** - Connects to the entire body's center (DerivedPos)
 - **PointJointLink** - Connects to a specific point mass within a body
+- **EdgeJointLink** - Connects to a point along an edge between two point masses, with interpolation ratio
 - **ShapeJointLink** - Connects to a group of point masses (weighted average position)
 
 Joint types:
