@@ -8,6 +8,12 @@
 
 **jel** simulates deformable bodies made of connected point masses. Physics behavior comes from attachable **Components** (an extensible interface), bodies connect via **Joints**, and collision resolution is per-material-pair. Use it for ragdolls, fabric, fluid bodies, or any soft-body effect.
 
+## Body
+
+Body represents a soft body made of BaseShape/GlobalShape, PointMasses and Edges.
+Make a body static by giving its point masses jel.Infinity (or use NewStaticBody); static bodies skip integration and forces.
+Kinematic bodies (IsKinematic=true) are driven externally via SetScaleAnglePosition which updates transforms and point positions — velocities (DerivedVel, DerivedOmega, PointMass.Velocity) are not updated automatically.
+
 ## Components
 
 Components are interfaces you attach to bodies to add physics behavior. The library includes:
@@ -22,7 +28,7 @@ Implement the `Component` interface to write your own.
 
 ## Joints & JointLinks
 
-**Joints** rigidly or elastically connect bodies. They work with **JointLinks** - abstractions that represent connection points:
+**Joints** rigidly or elastically connect bodies. They work with **JointLink** interface that represent connection points:
 
 - **BodyJointLink** - Connects to the entire body's center (DerivedPos)
 - **PointJointLink** - Connects to a specific point mass within a body
