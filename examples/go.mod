@@ -6,8 +6,8 @@ replace github.com/setanarut/jel => ../
 
 require (
 	github.com/ebitengine/debugui v0.3.0
-	github.com/hajimehoshi/ebiten/v2 v2.10.0
-	github.com/setanarut/jel v0.0.0-00010101000000-000000000000
+	github.com/hajimehoshi/ebiten/v2 v2.10.1
+	github.com/setanarut/jel v1.0.2
 )
 
 require (
@@ -18,8 +18,8 @@ require (
 	github.com/hajimehoshi/bitmapfont/v4 v4.2.0 // indirect
 	github.com/pierrec/lz4/v4 v4.1.29 // indirect
 	github.com/srwiley/rasterx v0.0.0-20220730225603-2ab79fcdd4ef // indirect
-	golang.org/x/image v0.45.0 // indirect
-	golang.org/x/sync v0.22.0 // indirect
-	golang.org/x/sys v0.47.0 // indirect
-	golang.org/x/text v0.41.0 // indirect
+	golang.org/x/image v0.46.0 // indirect
+	golang.org/x/sync v0.23.0 // indirect
+	golang.org/x/sys v0.48.0 // indirect
+	golang.org/x/text v0.42.0 // indirect
 )
