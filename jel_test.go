@@ -936,3 +936,18 @@ func TestClosestCollisionEdgesMatchesBruteForceSearch(t *testing.T) {
 		t.Fatalf("tree query mismatch: away=%+v same=%+v found=%t; want away=%+v same=%+v found=%t", away, same, foundAway, bruteAway, bruteSame, bruteFoundAway)
 	}
 }
+
+func TestWorldUpdateDoesNotRebuildStaticBodyAABB(t *testing.T) {
+	w := NewWorld()
+	body := NewStaticBody(Square(2), Vec2{}, 0, w)
+	original := body.AABB
+
+	// Mutate directly to make an accidental per-frame AABB rebuild observable.
+	// Normal transform APIs already force an AABB update when moving statics.
+	body.PointMasses[0].Position = Vec2{X: 100, Y: 100}
+	w.Update(1.0 / 60)
+
+	if body.AABB != original {
+		t.Errorf("static body AABB changed during update: got %+v, want %+v", body.AABB, original)
+	}
+}

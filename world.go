@@ -431,7 +431,9 @@ func (w *World) update(elapsed float64, bodies []*Body, joints []Joint) {
 			body.updateNormals()
 		}
 		body.Integrate(elapsed)
-		body.UpdateAABB(elapsed, true)
+		// Static bodies retain their AABB and spatial bitmask until their shape or
+		// transform changes, where those mutators explicitly force an update.
+		body.UpdateAABB(elapsed, false)
 		w.updateBodyBitmask(body)
 	}
 	// Update the joints

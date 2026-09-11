@@ -219,13 +219,19 @@ func (b *Body) updateEdges() {
 	for _, edge := range b.Edges {
 		start := b.PointMasses[edge.StartPointIndex].Position
 		end := b.PointMasses[edge.EndPointIndex].Position
+		difference := end.Sub(start)
+		lengthSquared := difference.MagSq()
+		length := math.Hypot(difference.X, difference.Y)
 
 		edge.Start = start
 		edge.End = end
-		edge.Difference = end.Sub(start).Unit()
+		edge.Difference = difference
+		if lengthSquared >= epsilonUnit && math.Abs(lengthSquared-1) >= epsilonUnit {
+			edge.Difference = difference.Scale(1 / length)
+		}
 		edge.Normal = edge.Difference.Perp()
-		edge.Length = start.Dist(end)
-		edge.LengthSquared = edge.Length * edge.Length
+		edge.Length = length
+		edge.LengthSquared = length * length
 	}
 	b.rebuildEdgeTree()
 }
