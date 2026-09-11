@@ -3,6 +3,7 @@ package jel
 import (
 	"math"
 	"slices"
+	"sort"
 )
 
 // Represents a soft body on the [World]
@@ -15,6 +16,10 @@ type Body struct {
 	PointMasses []*PointMass
 	// Edges on the body.
 	Edges []*BodyEdge
+	// edgeTree accelerates closest-edge queries made during narrow-phase
+	// collision detection. Its leaves reference edgeTreeIndices.
+	edgeTree        []edgeTreeNode
+	edgeTreeIndices []int
 	// Body joints this body participates in
 	Joints []Joint
 	// Body components for this body object
@@ -222,6 +227,124 @@ func (b *Body) updateEdges() {
 		edge.Length = start.Dist(end)
 		edge.LengthSquared = edge.Length * edge.Length
 	}
+	b.rebuildEdgeTree()
+}
+
+const edgeTreeLeafSize = 4
+
+type edgeTreeNode struct {
+	bounds      AABB
+	start, end  int
+	left, right int
+}
+
+// rebuildEdgeTree builds a bounding-volume hierarchy over the body's current
+// edges. It is rebuilt alongside edge data, so collision queries can prune
+// edges that cannot improve the current closest distance.
+func (b *Body) rebuildEdgeTree() {
+	if len(b.Edges) == 0 {
+		b.edgeTree = b.edgeTree[:0]
+		b.edgeTreeIndices = b.edgeTreeIndices[:0]
+		return
+	}
+	if cap(b.edgeTreeIndices) < len(b.Edges) {
+		b.edgeTreeIndices = make([]int, len(b.Edges))
+	} else {
+		b.edgeTreeIndices = b.edgeTreeIndices[:len(b.Edges)]
+	}
+	for i := range b.edgeTreeIndices {
+		b.edgeTreeIndices[i] = i
+	}
+	b.edgeTree = b.edgeTree[:0]
+
+	var build func(start, end int) int
+	build = func(start, end int) int {
+		nodeIndex := len(b.edgeTree)
+		b.edgeTree = append(b.edgeTree, edgeTreeNode{left: -1, right: -1})
+		bounds := b.edgeBounds(b.edgeTreeIndices[start])
+		for _, edgeIndex := range b.edgeTreeIndices[start+1 : end] {
+			bounds.ExpandToInclude(b.edgeBounds(edgeIndex).Min)
+			bounds.ExpandToInclude(b.edgeBounds(edgeIndex).Max)
+		}
+		if end-start <= edgeTreeLeafSize {
+			b.edgeTree[nodeIndex] = edgeTreeNode{bounds: bounds, start: start, end: end, left: -1, right: -1}
+			return nodeIndex
+		}
+		width := bounds.Max.X - bounds.Min.X
+		height := bounds.Max.Y - bounds.Min.Y
+		sort.Slice(b.edgeTreeIndices[start:end], func(i, j int) bool {
+			first := b.edgeBounds(b.edgeTreeIndices[start+i])
+			second := b.edgeBounds(b.edgeTreeIndices[start+j])
+			if width >= height {
+				return first.midX() < second.midX()
+			}
+			return (first.Min.Y+first.Max.Y)/2 < (second.Min.Y+second.Max.Y)/2
+		})
+		middle := start + (end-start)/2
+		left := build(start, middle)
+		right := build(middle, end)
+		b.edgeTree[nodeIndex] = edgeTreeNode{bounds: bounds, left: left, right: right}
+		return nodeIndex
+	}
+	build(0, len(b.edgeTreeIndices))
+}
+
+func (b *Body) edgeBounds(edgeIndex int) AABB {
+	edge := b.Edges[edgeIndex]
+	return NewAABB(edge.Start.Min(edge.End), edge.Start.Max(edge.End))
+}
+
+// closestCollisionEdges finds the closest edges whose normals face away from
+// and toward pointNormal. It uses the edge tree to avoid scanning edges whose
+// bounds cannot beat either current closest distance.
+func (b *Body) closestCollisionEdges(pt, pointNormal Vec2) (away, same CollisionInfo, foundAway bool) {
+	closestAway, closestSame := Infinity, Infinity
+	away.BodyBpmA, away.BodyBpmB = -1, -1
+	same.BodyBpmA, same.BodyBpmB = -1, -1
+	if len(b.edgeTree) == 0 {
+		return away, same, false
+	}
+	var visit func(int)
+	visit = func(nodeIndex int) {
+		node := b.edgeTree[nodeIndex]
+		nodeDistance := pointAABBDistanceSq(pt, node.bounds)
+		if nodeDistance >= closestAway && nodeDistance >= closestSame {
+			return
+		}
+		if node.left < 0 {
+			for _, edgeIndex := range b.edgeTreeIndices[node.start:node.end] {
+				hitPt, normal, edgeD, distance := b.ClosestPointOnEdgeSq(pt, edgeIndex)
+				if pointNormal.Dot(normal) <= 0 {
+					if distance < closestAway {
+						closestAway = distance
+						away = CollisionInfo{BodyBpmA: edgeIndex, BodyBpmB: (edgeIndex + 1) % len(b.PointMasses), EdgeD: edgeD, HitPt: hitPt, Normal: normal, Penetration: distance}
+						foundAway = true
+					}
+				} else if distance < closestSame {
+					closestSame = distance
+					same = CollisionInfo{BodyBpmA: edgeIndex, BodyBpmB: (edgeIndex + 1) % len(b.PointMasses), EdgeD: edgeD, HitPt: hitPt, Normal: normal, Penetration: distance}
+				}
+			}
+			return
+		}
+		leftDistance := pointAABBDistanceSq(pt, b.edgeTree[node.left].bounds)
+		rightDistance := pointAABBDistanceSq(pt, b.edgeTree[node.right].bounds)
+		if leftDistance <= rightDistance {
+			visit(node.left)
+			visit(node.right)
+		} else {
+			visit(node.right)
+			visit(node.left)
+		}
+	}
+	visit(0)
+	return away, same, foundAway
+}
+
+func pointAABBDistanceSq(point Vec2, box AABB) float64 {
+	dx := max(box.Min.X-point.X, 0, point.X-box.Max.X)
+	dy := max(box.Min.Y-point.Y, 0, point.Y-box.Max.Y)
+	return dx*dx + dy*dy
 }
 
 // Updates the point normals of the body.

@@ -545,66 +545,15 @@ func (w *World) collidePair(body1, body2 *Body) {
 
 // Checks collision between two bodies, and store the collision information if they do
 func (w *World) bodyCollide(bA, bB *Body) {
-	bBpCount := len(bB.PointMasses)
 	for i, pmA := range bA.PointMasses {
 		pt := pmA.Position
 		if !bB.Contains(pt) {
 			continue
 		}
-		ptNorm := pmA.Normal
-		// this point is inside the other body.  now check if the edges on
-		// either side intersect with and edges on bodyB.
-		closestAway := Infinity
-		closestSame := Infinity
-		infoAway := NewCollisionInfo(bA, i, bB)
-		infoSame := infoAway
-		found := false
-		for j := range bBpCount {
-			b1 := j
-			b2 := (j + 1) % bBpCount
-			pt1 := bB.PointMasses[b1].Position
-			pt2 := bB.PointMasses[b2].Position
-			// quick test of distance to each point on the edge, if both are
-			// greater than current mins, we can skip!
-			distToA := pt1.DistSq(pt)
-			distToB := pt2.DistSq(pt)
-			edgeLen := bB.Edges[j].LengthSquared
-			if edgeLen < distToA && edgeLen < distToB &&
-				distToA > closestAway && distToA > closestSame &&
-				distToB > closestAway && distToB > closestSame {
-				continue
-			}
-			// test against this edge.
-			hitPt, normal, edgeD, dist := bB.ClosestPointOnEdgeSq(pt, j)
-
-			// only perform the check if the normal for this edge is facing
-			// AWAY from the point normal.
-			dot := ptNorm.Dot(normal)
-
-			if dot <= 0.0 {
-				if dist < closestAway {
-					closestAway = dist
-					infoAway.BodyBpmA = b1
-					infoAway.BodyBpmB = b2
-					infoAway.EdgeD = edgeD
-					infoAway.HitPt = hitPt
-					infoAway.Normal = normal
-					infoAway.Penetration = dist
-					found = true
-				}
-			} else {
-				if dist < closestSame {
-					closestSame = dist
-					infoSame.BodyBpmA = b1
-					infoSame.BodyBpmB = b2
-					infoSame.EdgeD = edgeD
-					infoSame.HitPt = hitPt
-					infoSame.Normal = normal
-					infoSame.Penetration = dist
-				}
-			}
-		}
-		if found && (closestAway > w.PenetrationThreshold) && (closestSame < closestAway) {
+		infoAway, infoSame, found := bB.closestCollisionEdges(pt, pmA.Normal)
+		infoAway.BodyA, infoAway.BodyApm, infoAway.BodyB = bA, i, bB
+		infoSame.BodyA, infoSame.BodyApm, infoSame.BodyB = bA, i, bB
+		if found && infoAway.Penetration > w.PenetrationThreshold && infoSame.Penetration < infoAway.Penetration {
 			infoSame.Penetration = math.Sqrt(infoSame.Penetration)
 			w.collisionList = append(w.collisionList, infoSame)
 		} else {

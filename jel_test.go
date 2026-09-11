@@ -912,3 +912,27 @@ func TestBroadPhaseCandidatesDeduplicatesAndOrdersPairs(t *testing.T) {
 		t.Errorf("got %d stale broad-phase pairs after reuse, want 0", len(pairs))
 	}
 }
+
+func TestClosestCollisionEdgesMatchesBruteForceSearch(t *testing.T) {
+	body := NewBody(RegularPolygon(10, 32), Vec2{}, 0, 1)
+	point := Vec2{X: 2.75, Y: -1.5}
+	pointNormal := Vec2{X: 1, Y: 0}
+
+	away, same, foundAway := body.closestCollisionEdges(point, pointNormal)
+	bruteAway, bruteSame, bruteFoundAway := CollisionInfo{}, CollisionInfo{}, false
+	closestAway, closestSame := Infinity, Infinity
+	for edgeIndex := range body.Edges {
+		hit, normal, edgeD, distance := body.ClosestPointOnEdgeSq(point, edgeIndex)
+		info := CollisionInfo{BodyBpmA: edgeIndex, BodyBpmB: (edgeIndex + 1) % len(body.PointMasses), EdgeD: edgeD, HitPt: hit, Normal: normal, Penetration: distance}
+		if pointNormal.Dot(normal) <= 0 {
+			if distance < closestAway {
+				closestAway, bruteAway, bruteFoundAway = distance, info, true
+			}
+		} else if distance < closestSame {
+			closestSame, bruteSame = distance, info
+		}
+	}
+	if foundAway != bruteFoundAway || away != bruteAway || same != bruteSame {
+		t.Fatalf("tree query mismatch: away=%+v same=%+v found=%t; want away=%+v same=%+v found=%t", away, same, foundAway, bruteAway, bruteSame, bruteFoundAway)
+	}
+}
