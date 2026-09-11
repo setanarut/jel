@@ -889,3 +889,26 @@ func TestLineLerpCentralized(t *testing.T) {
 		t.Errorf("Failed to calculate point in line correctly at ratio 0.5. Expected: (0,0), Got: %v", result)
 	}
 }
+
+func TestBroadPhaseCandidatesDeduplicatesAndOrdersPairs(t *testing.T) {
+	w := NewWorld()
+	bodies := []*Body{
+		{AABB: NewAABB(Vec2{X: 0, Y: 0}, Vec2{X: 2, Y: 2})},
+		{AABB: NewAABB(Vec2{X: 1, Y: 1}, Vec2{X: 3, Y: 3})},
+		{AABB: NewAABB(Vec2{X: 10, Y: 10}, Vec2{X: 11, Y: 11})},
+	}
+
+	pairs := w.broadPhaseCandidates(bodies)
+	if len(pairs) != 1 {
+		t.Fatalf("got %d broad-phase pairs, want 1", len(pairs))
+	}
+	if got, want := pairs[0], uint64(1); got != want {
+		t.Errorf("pair key = %d, want %d (body indices 0 and 1)", got, want)
+	}
+
+	// Reusing the scratch maps must not retain pairs from the previous frame.
+	pairs = w.broadPhaseCandidates(bodies[1:])
+	if len(pairs) != 0 {
+		t.Errorf("got %d stale broad-phase pairs after reuse, want 0", len(pairs))
+	}
+}

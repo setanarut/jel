@@ -3,6 +3,7 @@ package jel
 import (
 	"math"
 	"slices"
+	"sort"
 )
 
 type World struct {
@@ -37,6 +38,12 @@ type World struct {
 	relaxing      bool
 	materialCount int
 	collisionList []CollisionInfo
+	// broadPhaseCells maps spatial-grid cells to the indices of bodies whose
+	// AABBs overlap that cell. broadPhasePairs and broadPhasePairKeys are
+	// reusable scratch space used to generate unique candidate pairs.
+	broadPhaseCells    map[uint64][]int
+	broadPhasePairs    map[uint64]struct{}
+	broadPhasePairKeys []uint64
 }
 
 // SetWorldLimits sets the boundaries of the simulation world.
@@ -91,6 +98,9 @@ func (w *World) Reset() {
 	}
 	w.Bodies = nil
 	w.collisionList = nil
+	w.broadPhaseCells = nil
+	w.broadPhasePairs = nil
+	w.broadPhasePairKeys = nil
 	w.DefaultMatPair = DefaultMaterialPair()
 	w.materialCount = 1
 	w.MaterialPairs = [][]MaterialPair{{w.DefaultMatPair}}
@@ -428,44 +438,10 @@ func (w *World) update(elapsed float64, bodies []*Body, joints []Joint) {
 	for _, joint := range joints {
 		joint.Resolve(elapsed)
 	}
-	c := len(bodies)
-	for i, body1 := range bodies {
-	innerLoop:
-		for j := i + 1; j < c; j++ {
-			body2 := bodies[j]
-			// bitmask filtering
-			if (body1.Bitmask & body2.Bitmask) == 0 {
-				continue
-			}
-			// another early-out - both bodies are static.
-			if (body1.IsStatic && body2.IsStatic) ||
-				!w.bitmasksIntersect(bitmaskPair{body1.BitmaskX, body1.BitmaskY}, bitmaskPair{body2.BitmaskX, body2.BitmaskY}) {
-				continue
-			}
-			// broad-phase collision via AABB. early out
-			if !body1.AABB.Intersects(body2.AABB) {
-				continue
-			}
-			// early out - these bodies materials are set NOT to collide
-			if !w.MaterialPairs[body1.Material][body2.Material].Collide {
-				continue
-			}
-			// Joints relationship: if one body is joined to another by a
-			// joint, check the joint's rule for collision
-			for _, jt := range body1.Joints {
-				if jt.LinkA().Body() == body1 && jt.LinkB().Body() == body2 ||
-					jt.LinkB().Body() == body1 && jt.LinkA().Body() == body2 {
-					if !jt.CollisionsAllowed() {
-						continue innerLoop
-					}
-				}
-			}
-			// okay, the AABB's of these 2 are intersecting.
-			// now check for collision of A against B.
-			w.bodyCollide(body1, body2)
-			// and the opposite case, B colliding with A
-			w.bodyCollide(body2, body1)
-		}
+	for _, pair := range w.broadPhaseCandidates(bodies) {
+		body1 := bodies[uint32(pair>>32)]
+		body2 := bodies[uint32(pair)]
+		w.collidePair(body1, body2)
 	}
 	if !w.relaxing { // Disabled during relaxation
 		// Notify collisions that will happen
@@ -477,6 +453,94 @@ func (w *World) update(elapsed float64, bodies []*Body, joints []Joint) {
 	for _, body := range bodies {
 		body.DampenVelocity(elapsed)
 	}
+}
+
+// broadPhaseCandidates returns all unique body-index pairs that share at least
+// one spatial-grid cell. Sorting preserves the previous stable body-pair order,
+// which is important because collision resolution mutates body positions.
+func (w *World) broadPhaseCandidates(bodies []*Body) []uint64 {
+	if w.broadPhaseCells == nil {
+		w.broadPhaseCells = make(map[uint64][]int)
+		w.broadPhasePairs = make(map[uint64]struct{})
+	}
+	for key, indices := range w.broadPhaseCells {
+		w.broadPhaseCells[key] = indices[:0]
+	}
+	clear(w.broadPhasePairs)
+	w.broadPhasePairKeys = w.broadPhasePairKeys[:0]
+
+	for i, body := range bodies {
+		minX, minY, maxX, maxY, ok := w.gridCellRange(body.AABB)
+		if !ok {
+			continue
+		}
+		for y := minY; y <= maxY; y++ {
+			for x := minX; x <= maxX; x++ {
+				key := uint64(uint32(y))<<32 | uint64(uint32(x))
+				w.broadPhaseCells[key] = append(w.broadPhaseCells[key], i)
+			}
+		}
+	}
+
+	for _, indices := range w.broadPhaseCells {
+		for i, first := range indices {
+			for _, second := range indices[i+1:] {
+				pair := uint64(uint32(first))<<32 | uint64(uint32(second))
+				if _, exists := w.broadPhasePairs[pair]; !exists {
+					w.broadPhasePairs[pair] = struct{}{}
+					w.broadPhasePairKeys = append(w.broadPhasePairKeys, pair)
+				}
+			}
+		}
+	}
+	sort.Slice(w.broadPhasePairKeys, func(i, j int) bool {
+		return w.broadPhasePairKeys[i] < w.broadPhasePairKeys[j]
+	})
+	return w.broadPhasePairKeys
+}
+
+func (w *World) gridCellRange(aabb AABB) (minX, minY, maxX, maxY int, ok bool) {
+	if !aabb.Valid || w.worldGridSubdivision <= 0 ||
+		math.IsNaN(aabb.Min.X) || math.IsNaN(aabb.Min.Y) ||
+		math.IsNaN(aabb.Max.X) || math.IsNaN(aabb.Max.Y) {
+		return 0, 0, 0, 0, false
+	}
+	toCell := func(value, min, inverseStep float64) int {
+		return int(math.Floor((value - min) * inverseStep))
+	}
+	limit := w.worldGridSubdivision - 1
+	minX = min(limit, max(0, toCell(aabb.Min.X, w.worldLimits.Min.X, w.invWorldGridStep.X)))
+	minY = min(limit, max(0, toCell(aabb.Min.Y, w.worldLimits.Min.Y, w.invWorldGridStep.Y)))
+	maxX = min(limit, max(0, toCell(aabb.Max.X, w.worldLimits.Min.X, w.invWorldGridStep.X)))
+	maxY = min(limit, max(0, toCell(aabb.Max.Y, w.worldLimits.Min.Y, w.invWorldGridStep.Y)))
+	return minX, minY, maxX, maxY, true
+}
+
+func (w *World) collidePair(body1, body2 *Body) {
+	// bitmask filtering
+	if (body1.Bitmask & body2.Bitmask) == 0 {
+		return
+	}
+	// Another early-out: both bodies are static, or their spatial bitmasks do
+	// not intersect. The grid already reduces candidates, but these checks are
+	// retained for compatibility and cheap rejection.
+	if (body1.IsStatic && body2.IsStatic) ||
+		!w.bitmasksIntersect(bitmaskPair{body1.BitmaskX, body1.BitmaskY}, bitmaskPair{body2.BitmaskX, body2.BitmaskY}) {
+		return
+	}
+	if !body1.AABB.Intersects(body2.AABB) || !w.MaterialPairs[body1.Material][body2.Material].Collide {
+		return
+	}
+	for _, jt := range body1.Joints {
+		if (jt.LinkA().Body() == body1 && jt.LinkB().Body() == body2) ||
+			(jt.LinkB().Body() == body1 && jt.LinkA().Body() == body2) {
+			if !jt.CollisionsAllowed() {
+				return
+			}
+		}
+	}
+	w.bodyCollide(body1, body2)
+	w.bodyCollide(body2, body1)
 }
 
 // Checks collision between two bodies, and store the collision information if they do
