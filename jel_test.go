@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"math/bits"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -887,5 +888,88 @@ func TestLineLerpCentralized(t *testing.T) {
 	result := pt1.Lerp(pt2, 0.5)
 	if result.DistSq(Vec2{X: 0, Y: 0}) > delta {
 		t.Errorf("Failed to calculate point in line correctly at ratio 0.5. Expected: (0,0), Got: %v", result)
+	}
+}
+
+func TestBroadPhaseCandidatesDeduplicatesAndOrdersPairs(t *testing.T) {
+	w := NewWorld()
+	bodies := []*Body{
+		{AABB: NewAABB(Vec2{X: 0, Y: 0}, Vec2{X: 2, Y: 2})},
+		{AABB: NewAABB(Vec2{X: 1, Y: 1}, Vec2{X: 3, Y: 3})},
+		{AABB: NewAABB(Vec2{X: 10, Y: 10}, Vec2{X: 11, Y: 11})},
+	}
+
+	pairs := w.broadPhaseCandidates(bodies)
+	if len(pairs) != 1 {
+		t.Fatalf("got %d broad-phase pairs, want 1", len(pairs))
+	}
+	if got, want := pairs[0], uint64(1); got != want {
+		t.Errorf("pair key = %d, want %d (body indices 0 and 1)", got, want)
+	}
+
+	// Reusing the scratch maps must not retain pairs from the previous frame.
+	pairs = w.broadPhaseCandidates(bodies[1:])
+	if len(pairs) != 0 {
+		t.Errorf("got %d stale broad-phase pairs after reuse, want 0", len(pairs))
+	}
+}
+
+func TestBroadPhaseCandidatesKeepOversizedBodiesOutOfCells(t *testing.T) {
+	w := NewWorld()
+	bodies := []*Body{
+		{AABB: w.WorldLimits()},
+		{AABB: w.WorldLimits()},
+		{AABB: NewAABB(Vec2{X: 0, Y: 0}, Vec2{X: 1, Y: 1})},
+	}
+
+	pairs := w.broadPhaseCandidates(bodies)
+	if got, want := pairs, []uint64{1, 2, uint64(1)<<32 | 2}; !slices.Equal(got, want) {
+		t.Fatalf("oversized body pairs = %v, want %v", got, want)
+	}
+	for cell, indices := range w.broadPhaseCells {
+		for _, index := range indices {
+			if index == 0 || index == 1 {
+				t.Fatalf("oversized body %d was inserted into cell %d", index, cell)
+			}
+		}
+	}
+}
+
+func TestClosestCollisionEdgesMatchesBruteForceSearch(t *testing.T) {
+	body := NewBody(RegularPolygon(10, 32), Vec2{}, 0, 1)
+	point := Vec2{X: 2.75, Y: -1.5}
+	pointNormal := Vec2{X: 1, Y: 0}
+
+	away, same, foundAway := body.closestCollisionEdges(point, pointNormal)
+	bruteAway, bruteSame, bruteFoundAway := CollisionInfo{}, CollisionInfo{}, false
+	closestAway, closestSame := Infinity, Infinity
+	for edgeIndex := range body.Edges {
+		hit, normal, edgeD, distance := body.ClosestPointOnEdgeSq(point, edgeIndex)
+		info := CollisionInfo{BodyBpmA: edgeIndex, BodyBpmB: (edgeIndex + 1) % len(body.PointMasses), EdgeD: edgeD, HitPt: hit, Normal: normal, Penetration: distance}
+		if pointNormal.Dot(normal) <= 0 {
+			if distance < closestAway {
+				closestAway, bruteAway, bruteFoundAway = distance, info, true
+			}
+		} else if distance < closestSame {
+			closestSame, bruteSame = distance, info
+		}
+	}
+	if foundAway != bruteFoundAway || away != bruteAway || same != bruteSame {
+		t.Fatalf("tree query mismatch: away=%+v same=%+v found=%t; want away=%+v same=%+v found=%t", away, same, foundAway, bruteAway, bruteSame, bruteFoundAway)
+	}
+}
+
+func TestWorldUpdateDoesNotRebuildStaticBodyAABB(t *testing.T) {
+	w := NewWorld()
+	body := NewStaticBody(Square(2), Vec2{}, 0, w)
+	original := body.AABB
+
+	// Mutate directly to make an accidental per-frame AABB rebuild observable.
+	// Normal transform APIs already force an AABB update when moving statics.
+	body.PointMasses[0].Position = Vec2{X: 100, Y: 100}
+	w.Update(1.0 / 60)
+
+	if body.AABB != original {
+		t.Errorf("static body AABB changed during update: got %+v, want %+v", body.AABB, original)
 	}
 }
