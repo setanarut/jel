@@ -13,6 +13,7 @@ import (
 )
 
 var solidImage = ebiten.NewImage(1, 1)
+var rgb = Rgb
 
 func init() {
 	ebiten.SetScreenClearedEveryFrame(false)
@@ -34,16 +35,16 @@ type Colors struct {
 
 func DefaultColors() Colors {
 	return Colors{
-		Background:        Rgb(47, 91, 46),
-		AABB:              Rgb(190, 254, 254),
-		FillPointMasses:   Rgb(0, 0, 0),
-		PointMassDots:     Rgb(255, 255, 255),
-		StrokeGlobalShape: Rgb(0, 0, 0),
-		BodyEdge:          Rgb(134, 186, 255),
-		EdgeSpring:        Rgb(234, 234, 234),
-		ExtraEdgeSpring:   Rgb(255, 215, 70),
-		Static:            Rgb(118, 118, 118),
-		Joint:             Rgb(255, 0, 242),
+		Background:        rgb(47, 91, 46),
+		AABB:              rgb(190, 254, 254),
+		FillPointMasses:   rgb(187, 140, 102),
+		PointMassDots:     rgb(255, 255, 255),
+		StrokeGlobalShape: rgb(0, 0, 0),
+		BodyEdge:          rgb(134, 186, 255),
+		EdgeSpring:        rgb(234, 234, 234),
+		ExtraEdgeSpring:   rgb(255, 215, 70),
+		Static:            rgb(118, 118, 118),
+		Joint:             rgb(255, 0, 242),
 	}
 }
 
