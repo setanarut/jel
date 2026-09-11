@@ -41,9 +41,10 @@ type World struct {
 	// broadPhaseCells maps spatial-grid cells to the indices of bodies whose
 	// AABBs overlap that cell. broadPhasePairs and broadPhasePairKeys are
 	// reusable scratch space used to generate unique candidate pairs.
-	broadPhaseCells    map[uint64][]int
-	broadPhasePairs    map[uint64]struct{}
-	broadPhasePairKeys []uint64
+	broadPhaseCells     map[uint64][]int
+	broadPhasePairs     map[uint64]struct{}
+	broadPhasePairKeys  []uint64
+	broadPhaseOversized []int
 }
 
 // SetWorldLimits sets the boundaries of the simulation world.
@@ -101,6 +102,7 @@ func (w *World) Reset() {
 	w.broadPhaseCells = nil
 	w.broadPhasePairs = nil
 	w.broadPhasePairKeys = nil
+	w.broadPhaseOversized = nil
 	w.DefaultMatPair = DefaultMaterialPair()
 	w.materialCount = 1
 	w.MaterialPairs = [][]MaterialPair{{w.DefaultMatPair}}
@@ -470,10 +472,15 @@ func (w *World) broadPhaseCandidates(bodies []*Body) []uint64 {
 	}
 	clear(w.broadPhasePairs)
 	w.broadPhasePairKeys = w.broadPhasePairKeys[:0]
+	w.broadPhaseOversized = w.broadPhaseOversized[:0]
 
 	for i, body := range bodies {
 		minX, minY, maxX, maxY, ok := w.gridCellRange(body.AABB)
 		if !ok {
+			continue
+		}
+		if (maxX-minX+1)*(maxY-minY+1) > broadPhaseOversizedCellThreshold {
+			w.broadPhaseOversized = append(w.broadPhaseOversized, i)
 			continue
 		}
 		for y := minY; y <= maxY; y++ {
@@ -487,18 +494,39 @@ func (w *World) broadPhaseCandidates(bodies []*Body) []uint64 {
 	for _, indices := range w.broadPhaseCells {
 		for i, first := range indices {
 			for _, second := range indices[i+1:] {
-				pair := uint64(uint32(first))<<32 | uint64(uint32(second))
-				if _, exists := w.broadPhasePairs[pair]; !exists {
-					w.broadPhasePairs[pair] = struct{}{}
-					w.broadPhasePairKeys = append(w.broadPhasePairKeys, pair)
-				}
+				w.addBroadPhasePair(first, second)
 			}
+		}
+	}
+	// Large AABBs are deliberately not inserted into every cell they cover.
+	// Instead, test each once against all bodies. This avoids enumerating the
+	// same large-body pair once per shared grid cell.
+	for _, first := range w.broadPhaseOversized {
+		for second := range bodies {
+			if first == second || !bodies[first].AABB.Intersects(bodies[second].AABB) {
+				continue
+			}
+			w.addBroadPhasePair(first, second)
 		}
 	}
 	sort.Slice(w.broadPhasePairKeys, func(i, j int) bool {
 		return w.broadPhasePairKeys[i] < w.broadPhasePairKeys[j]
 	})
 	return w.broadPhasePairKeys
+}
+
+const broadPhaseOversizedCellThreshold = 16
+
+func (w *World) addBroadPhasePair(first, second int) {
+	if first > second {
+		first, second = second, first
+	}
+	pair := uint64(uint32(first))<<32 | uint64(uint32(second))
+	if _, exists := w.broadPhasePairs[pair]; exists {
+		return
+	}
+	w.broadPhasePairs[pair] = struct{}{}
+	w.broadPhasePairKeys = append(w.broadPhasePairKeys, pair)
 }
 
 func (w *World) gridCellRange(aabb AABB) (minX, minY, maxX, maxY int, ok bool) {

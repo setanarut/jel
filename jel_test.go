@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"math/bits"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -910,6 +911,27 @@ func TestBroadPhaseCandidatesDeduplicatesAndOrdersPairs(t *testing.T) {
 	pairs = w.broadPhaseCandidates(bodies[1:])
 	if len(pairs) != 0 {
 		t.Errorf("got %d stale broad-phase pairs after reuse, want 0", len(pairs))
+	}
+}
+
+func TestBroadPhaseCandidatesKeepOversizedBodiesOutOfCells(t *testing.T) {
+	w := NewWorld()
+	bodies := []*Body{
+		{AABB: w.WorldLimits()},
+		{AABB: w.WorldLimits()},
+		{AABB: NewAABB(Vec2{X: 0, Y: 0}, Vec2{X: 1, Y: 1})},
+	}
+
+	pairs := w.broadPhaseCandidates(bodies)
+	if got, want := pairs, []uint64{1, 2, uint64(1)<<32 | 2}; !slices.Equal(got, want) {
+		t.Fatalf("oversized body pairs = %v, want %v", got, want)
+	}
+	for cell, indices := range w.broadPhaseCells {
+		for _, index := range indices {
+			if index == 0 || index == 1 {
+				t.Fatalf("oversized body %d was inserted into cell %d", index, cell)
+			}
+		}
 	}
 }
 
