@@ -4,7 +4,6 @@ import (
 	"log"
 	"math"
 
-	_ "github.com/ebitengine/debugui"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/setanarut/jel"
 	"github.com/setanarut/jel/examples"

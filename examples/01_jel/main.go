@@ -3,7 +3,6 @@ package main
 import (
 	"log"
 
-	_ "github.com/ebitengine/debugui"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/setanarut/jel"
 	"github.com/setanarut/jel/examples"
