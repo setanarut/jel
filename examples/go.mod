@@ -7,7 +7,7 @@ replace github.com/setanarut/jel => ../
 require (
 	github.com/ebitengine/debugui v0.3.0
 	github.com/hajimehoshi/ebiten/v2 v2.10.2
-	github.com/setanarut/jel v1.0.3
+	github.com/setanarut/jel v0.0.0-00010101000000-000000000000
 )
 
 require (
