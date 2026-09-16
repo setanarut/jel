@@ -7,6 +7,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/setanarut/v"
 )
 
 const bitmaskBitSize = 64
@@ -34,7 +36,7 @@ func TestBitmaskSetRange(t *testing.T) {
 
 func TestGenerateBitmaskMinimum(t *testing.T) {
 	world := NewWorld()
-	world.SetWorldLimits(Vec2{X: -20, Y: -20}, Vec2{X: 20, Y: 20})
+	world.SetWorldLimits(v.Vec{X: -20, Y: -20}, v.Vec{X: 20, Y: 20})
 	aabb := AABB{Min: world.worldLimits.Min, Max: world.worldLimits.Min}
 	bitmasks := world.bitmask(aabb)
 	assertBitmasksMatch(t, bitmasks.X, Bitmask(1))
@@ -42,7 +44,7 @@ func TestGenerateBitmaskMinimum(t *testing.T) {
 }
 func TestGenerateBitmaskMaximum(t *testing.T) {
 	world := NewWorld()
-	world.SetWorldLimits(Vec2{X: -20, Y: -20}, Vec2{X: 20, Y: 20})
+	world.SetWorldLimits(v.Vec{X: -20, Y: -20}, v.Vec{X: 20, Y: 20})
 	aabb := AABB{Min: world.worldLimits.Max, Max: world.worldLimits.Max}
 	bitmasks := world.bitmask(aabb)
 	expected := Bitmask(1) << (bitmaskBitSize - 1)
@@ -51,8 +53,8 @@ func TestGenerateBitmaskMaximum(t *testing.T) {
 }
 func TestGenerateBitmaskCenter(t *testing.T) {
 	world := NewWorld()
-	world.SetWorldLimits(Vec2{X: -20, Y: -20}, Vec2{X: 20, Y: 20})
-	aabb := AABB{Min: Vec2{X: 0, Y: 0}, Max: Vec2{X: 0, Y: 0}}
+	world.SetWorldLimits(v.Vec{X: -20, Y: -20}, v.Vec{X: 20, Y: 20})
+	aabb := AABB{Min: v.Vec{X: 0, Y: 0}, Max: v.Vec{X: 0, Y: 0}}
 	bitmasks := world.bitmask(aabb)
 	expected := Bitmask(1) << (bitmaskBitSize/2 - 1)
 	assertBitmasksMatch(t, bitmasks.X, expected)
@@ -60,7 +62,7 @@ func TestGenerateBitmaskCenter(t *testing.T) {
 }
 func TestGenerateBitmaskFilling(t *testing.T) {
 	world := NewWorld()
-	world.SetWorldLimits(Vec2{X: -20, Y: -20}, Vec2{X: 20, Y: 20})
+	world.SetWorldLimits(v.Vec{X: -20, Y: -20}, v.Vec{X: 20, Y: 20})
 	aabb := AABB{Min: world.worldLimits.Min, Max: world.worldLimits.Max}
 	bitmasks := world.bitmask(aabb)
 	assertBitmasksMatch(t, bitmasks.X, Bitmask(^uint64(0)))
@@ -68,8 +70,8 @@ func TestGenerateBitmaskFilling(t *testing.T) {
 }
 func TestGenerateBitmaskQuarter(t *testing.T) {
 	world := NewWorld()
-	world.SetWorldLimits(Vec2{X: -20, Y: -20}, Vec2{X: 20, Y: 20})
-	aabb := AABB{Min: Vec2{X: 0, Y: 0}, Max: world.worldLimits.Max}
+	world.SetWorldLimits(v.Vec{X: -20, Y: -20}, v.Vec{X: 20, Y: 20})
+	aabb := AABB{Min: v.Vec{X: 0, Y: 0}, Max: world.worldLimits.Max}
 	bitmasks := world.bitmask(aabb)
 	expected := Bitmask(0b11111111_11111111_11111111_11111111_10000000_00000000_00000000_00000000)
 	assertBitmasksMatch(t, bitmasks.X, expected)
@@ -77,8 +79,8 @@ func TestGenerateBitmaskQuarter(t *testing.T) {
 }
 func TestGenerateBitmaskSmallRect(t *testing.T) {
 	world := NewWorld()
-	world.SetWorldLimits(Vec2{X: -20, Y: -20}, Vec2{X: 20, Y: 20})
-	aabb := AABB{Min: Vec2{X: -4, Y: -4}, Max: Vec2{X: 0, Y: 0}}
+	world.SetWorldLimits(v.Vec{X: -20, Y: -20}, v.Vec{X: 20, Y: 20})
+	aabb := AABB{Min: v.Vec{X: -4, Y: -4}, Max: v.Vec{X: 0, Y: 0}}
 	bitmasks := world.bitmask(aabb)
 	expected := Bitmask(0x0000_0000_FF00_0000)
 	assertBitmasksMatch(t, bitmasks.X, expected)
@@ -86,8 +88,8 @@ func TestGenerateBitmaskSmallRect(t *testing.T) {
 }
 func TestGenerateBitmaskEmptyRect(t *testing.T) {
 	world := NewWorld()
-	world.SetWorldLimits(Vec2{X: -20, Y: -20}, Vec2{X: 20, Y: 20})
-	aabb := AABB{Min: Vec2{X: 0, Y: 0}, Max: Vec2{X: 0, Y: 0}}
+	world.SetWorldLimits(v.Vec{X: -20, Y: -20}, v.Vec{X: 20, Y: 20})
+	aabb := AABB{Min: v.Vec{X: 0, Y: 0}, Max: v.Vec{X: 0, Y: 0}}
 	bitmasks := world.bitmask(aabb)
 	expected := Bitmask(0x0000_0000_8000_0000)
 	assertBitmasksMatch(t, bitmasks.X, expected)
@@ -95,13 +97,13 @@ func TestGenerateBitmaskEmptyRect(t *testing.T) {
 }
 func TestGenerateBitmaskLimitBounds(t *testing.T) {
 	world := NewWorld()
-	world.SetWorldLimits(Vec2{X: -20, Y: -20}, Vec2{X: 20, Y: 20})
-	aabb := AABB{Min: Vec2{X: 30, Y: 30}, Max: Vec2{X: 32, Y: 32}}
+	world.SetWorldLimits(v.Vec{X: -20, Y: -20}, v.Vec{X: 20, Y: 20})
+	aabb := AABB{Min: v.Vec{X: 30, Y: 30}, Max: v.Vec{X: 32, Y: 32}}
 	bitmasks := world.bitmask(aabb)
 	expected := Bitmask(0x8000_0000_0000_0000)
 	assertBitmasksMatch(t, bitmasks.X, expected)
 	assertBitmasksMatch(t, bitmasks.Y, expected)
-	aabb = AABB{Min: Vec2{X: -33, Y: -33}, Max: Vec2{X: -32, Y: -32}}
+	aabb = AABB{Min: v.Vec{X: -33, Y: -33}, Max: v.Vec{X: -32, Y: -32}}
 	bitmasks = world.bitmask(aabb)
 	expected = Bitmask(0x0000_0000_0000_0001)
 	assertBitmasksMatch(t, bitmasks.X, expected)
@@ -109,8 +111,8 @@ func TestGenerateBitmaskLimitBounds(t *testing.T) {
 }
 func TestGenerateBitmaskNaN(t *testing.T) {
 	world := NewWorld()
-	world.SetWorldLimits(Vec2{X: -20, Y: -20}, Vec2{X: 20, Y: 20})
-	aabb := AABB{Min: Vec2{X: math.NaN(), Y: 0}, Max: Vec2{X: 0, Y: 0}}
+	world.SetWorldLimits(v.Vec{X: -20, Y: -20}, v.Vec{X: 20, Y: 20})
+	aabb := AABB{Min: v.Vec{X: math.NaN(), Y: 0}, Max: v.Vec{X: 0, Y: 0}}
 	bitmasks := world.bitmask(aabb)
 	if bitmasks.X != 0 {
 		t.Errorf("Expected X to be 0, got %v", bitmasks.X)
@@ -139,10 +141,10 @@ func TestBitmasksIntersect(t *testing.T) {
 }
 func TestRayCast(t *testing.T) {
 	world := NewWorld()
-	world.SetWorldLimits(Vec2{X: -20, Y: -20}, Vec2{X: 20, Y: 20})
-	body1 := NewBody(Square(6), Vec2{3, 3}, 0, 1)
-	world.AddBodies(body1, NewBody(Rectangle(8, 6), Vec2{10, 6}, 0, 1))
-	pt, body := world.RayCast(Vec2{-10, -10}, Vec2{10, 10}, 0, nil)
+	world.SetWorldLimits(v.Vec{X: -20, Y: -20}, v.Vec{X: 20, Y: 20})
+	body1 := NewBody(Square(6), v.Vec{3, 3}, 0, 1)
+	world.AddBodies(body1, NewBody(Rectangle(8, 6), v.Vec{10, 6}, 0, 1))
+	pt, body := world.RayCast(v.Vec{-10, -10}, v.Vec{10, 10}, 0, nil)
 	if body == nil {
 		t.Fatal("Should have found body")
 	}
@@ -155,9 +157,9 @@ func TestRayCast(t *testing.T) {
 }
 func TestRayCast2(t *testing.T) {
 	world := NewWorld()
-	world.SetWorldLimits(Vec2{-20, -20}, Vec2{20, 20})
-	body := NewBody(RegularPolygon(6, 10), Vec2{2, 10}, 0, 1, world)
-	_, bd := world.RayCast(Vec2{0, -10}, Vec2{4, 20}, 0, nil)
+	world.SetWorldLimits(v.Vec{-20, -20}, v.Vec{20, 20})
+	body := NewBody(RegularPolygon(6, 10), v.Vec{2, 10}, 0, 1, world)
+	_, bd := world.RayCast(v.Vec{0, -10}, v.Vec{4, 20}, 0, nil)
 	if bd == nil {
 		t.Fatal("Should have found body")
 	}
@@ -205,7 +207,7 @@ func TestBody_UpdateEdgesAndNormals(t *testing.T) {
 	shape.AddVertexXY(0.5, 0)
 	shape.AddVertexXY(0, 1)
 
-	body := NewBody(shape, Vec2{}, 0, 1)
+	body := NewBody(shape, v.Vec{}, 0, 1)
 
 	body.updateEdgesAndNormals()
 
@@ -220,9 +222,9 @@ func TestBody_UpdateEdgesAndNormals(t *testing.T) {
 }
 
 func TestAABB(t *testing.T) {
-	aabb1 := NewAABB(Vec2{}, Vec2{10, 10})
-	aabb2 := NewAABB(Vec2{-1, -1}, Vec2{})
-	if !aabb1.Contains(Vec2{}) {
+	aabb1 := NewAABB(v.Vec{}, v.Vec{10, 10})
+	aabb2 := NewAABB(v.Vec{-1, -1}, v.Vec{})
+	if !aabb1.Contains(v.Vec{}) {
 		t.Error("aabb1.Contains(vec) should be true")
 	}
 	if !aabb2.Intersects(aabb1) {
@@ -233,19 +235,19 @@ func TestAABB(t *testing.T) {
 func TestAABBWithPointsSimple(t *testing.T) {
 	// Tests AABB minimum/maximum coordinates calculation
 
-	point1 := Vec2{X: 1, Y: 2}
-	point2 := Vec2{X: 10, Y: 20}
+	point1 := v.Vec{X: 1, Y: 2}
+	point2 := v.Vec{X: 10, Y: 20}
 
-	aabb := NewAABBFromPoints([]Vec2{point1, point2})
+	aabb := NewAABBFromPoints([]v.Vec{point1, point2})
 
-	expectedmin := Vec2{X: 1, Y: 2}
-	expectedMax := Vec2{X: 10, Y: 20}
+	expectedmin := v.Vec{X: 1, Y: 2}
+	expectedMax := v.Vec{X: 10, Y: 20}
 
 	if aabb.Min != expectedmin {
-		t.Errorf("Expected Min %v, got %v", Vec2{X: 1, Y: 2}, aabb.Min)
+		t.Errorf("Expected Min %v, got %v", v.Vec{X: 1, Y: 2}, aabb.Min)
 	}
 	if aabb.Max != expectedMax {
-		t.Errorf("Expected Max %v, got %v", Vec2{X: 10, Y: 20}, aabb.Max)
+		t.Errorf("Expected Max %v, got %v", v.Vec{X: 10, Y: 20}, aabb.Max)
 	}
 }
 
@@ -254,16 +256,16 @@ func TestAABBWithPointsMixed(t *testing.T) {
 	// This test mixes minimum and maximum x and y axis between the
 	// vectors
 
-	point1 := Vec2{X: 10, Y: 2}
-	point2 := Vec2{X: 1, Y: 20}
+	point1 := v.Vec{X: 10, Y: 2}
+	point2 := v.Vec{X: 1, Y: 20}
 
-	aabb := NewAABBFromPoints([]Vec2{point1, point2})
+	aabb := NewAABBFromPoints([]v.Vec{point1, point2})
 
-	if aabb.Min != (Vec2{X: 1, Y: 2}) {
-		t.Errorf("Expected Min %v, got %v", Vec2{X: 1, Y: 2}, aabb.Min)
+	if aabb.Min != (v.Vec{X: 1, Y: 2}) {
+		t.Errorf("Expected Min %v, got %v", v.Vec{X: 1, Y: 2}, aabb.Min)
 	}
-	if aabb.Max != (Vec2{X: 10, Y: 20}) {
-		t.Errorf("Expected Max %v, got %v", Vec2{X: 10, Y: 20}, aabb.Max)
+	if aabb.Max != (v.Vec{X: 10, Y: 20}) {
+		t.Errorf("Expected Max %v, got %v", v.Vec{X: 10, Y: 20}, aabb.Max)
 	}
 }
 
@@ -276,8 +278,8 @@ func TestAABBIntersection(t *testing.T) {
 	//   |___|
 	//
 
-	aabb1 := NewAABB(Vec2{X: 0, Y: 0}, Vec2{X: 10, Y: 10})
-	aabb2 := NewAABB(Vec2{X: 5, Y: 5}, Vec2{X: 15, Y: 15})
+	aabb1 := NewAABB(v.Vec{X: 0, Y: 0}, v.Vec{X: 10, Y: 10})
+	aabb2 := NewAABB(v.Vec{X: 5, Y: 5}, v.Vec{X: 15, Y: 15})
 
 	if !aabb1.Intersects(aabb2) {
 		t.Errorf("Expected aabb1 to intersect aabb2")
@@ -293,8 +295,8 @@ func TestAABBIntersectionSharingEdges(t *testing.T) {
 	//
 	// Sharing edge should be detected as intersection
 
-	aabb1 := NewAABB(Vec2{X: 0, Y: 0}, Vec2{X: 5, Y: 5})
-	aabb2 := NewAABB(Vec2{X: 5, Y: 0}, Vec2{X: 10, Y: 5})
+	aabb1 := NewAABB(v.Vec{X: 0, Y: 0}, v.Vec{X: 5, Y: 5})
+	aabb2 := NewAABB(v.Vec{X: 5, Y: 0}, v.Vec{X: 10, Y: 5})
 
 	if !aabb1.Intersects(aabb2) {
 		t.Errorf("Expected aabb1 to intersect aabb2")
@@ -311,8 +313,8 @@ func TestAABBComplexIntersection(t *testing.T) {
 	//    |___|
 	//
 
-	aabb1 := NewAABB(Vec2{X: 5, Y: 0}, Vec2{X: 10, Y: 15})
-	aabb2 := NewAABB(Vec2{X: 0, Y: 5}, Vec2{X: 15, Y: 10})
+	aabb1 := NewAABB(v.Vec{X: 5, Y: 0}, v.Vec{X: 10, Y: 15})
+	aabb2 := NewAABB(v.Vec{X: 0, Y: 5}, v.Vec{X: 15, Y: 10})
 
 	if !aabb1.Intersects(aabb2) {
 		t.Errorf("Expected aabb1 to intersect aabb2")
@@ -331,8 +333,8 @@ func TestAABBNoIntersection(t *testing.T) {
 	// Should not report intersection!
 	//
 
-	aabb1 := NewAABB(Vec2{X: 0, Y: 0}, Vec2{X: 10, Y: 10})
-	aabb2 := NewAABB(Vec2{X: 11, Y: 11}, Vec2{X: 15, Y: 15})
+	aabb1 := NewAABB(v.Vec{X: 0, Y: 0}, v.Vec{X: 10, Y: 10})
+	aabb2 := NewAABB(v.Vec{X: 11, Y: 11}, v.Vec{X: 15, Y: 15})
 
 	if aabb1.Intersects(aabb2) {
 		t.Errorf("Expected aabb1 to NOT intersect aabb2")
@@ -353,8 +355,8 @@ func TestAABBNoIntersectionComplex(t *testing.T) {
 	// This is a mixture of complex AABB creation and non-intersection
 	// detection.
 
-	aabb1 := NewAABB(Vec2{X: 5, Y: 0}, Vec2{X: 10, Y: 10})
-	aabb2 := NewAABB(Vec2{X: 6, Y: 11}, Vec2{X: 14, Y: 20})
+	aabb1 := NewAABB(v.Vec{X: 5, Y: 0}, v.Vec{X: 10, Y: 10})
+	aabb2 := NewAABB(v.Vec{X: 6, Y: 11}, v.Vec{X: 14, Y: 20})
 
 	if aabb1.Intersects(aabb2) {
 		t.Errorf("Expected aabb1 to NOT intersect aabb2")
@@ -385,8 +387,8 @@ func TestCollisionSolveSquares(t *testing.T) {
 	observer := &testObserver{}
 	world.CollisionObserver = observer
 	shape := Square(10)
-	world.AddBody(NewBody(shape, Vec2{}, 0, 1))
-	world.AddBody(NewBody(shape, Vec2{11, 0}, Pi/4, 1))
+	world.AddBody(NewBody(shape, v.Vec{}, 0, 1))
+	world.AddBody(NewBody(shape, v.Vec{11, 0}, Pi/4, 1))
 
 	world.Update(1.0 / 200.0)
 
@@ -404,69 +406,69 @@ func almostEqual(a, b float64) bool {
 func TestLineIntersect(t *testing.T) {
 	tests := []struct {
 		name      string
-		aStart    Vec2
-		aEnd      Vec2
-		bStart    Vec2
-		bEnd      Vec2
+		aStart    v.Vec
+		aEnd      v.Vec
+		bStart    v.Vec
+		bEnd      v.Vec
 		wantHit   bool
-		wantHitPt Vec2
+		wantHitPt v.Vec
 		wantUa    float64
 		wantUb    float64
 	}{
 		{
 			name:      "Normal Intersection (X-shape)",
-			aStart:    Vec2{X: 0, Y: 0},
-			aEnd:      Vec2{X: 10, Y: 10},
-			bStart:    Vec2{X: 0, Y: 10},
-			bEnd:      Vec2{X: 10, Y: 0},
+			aStart:    v.Vec{X: 0, Y: 0},
+			aEnd:      v.Vec{X: 10, Y: 10},
+			bStart:    v.Vec{X: 0, Y: 10},
+			bEnd:      v.Vec{X: 10, Y: 0},
 			wantHit:   true,
-			wantHitPt: Vec2{X: 5, Y: 5},
+			wantHitPt: v.Vec{X: 5, Y: 5},
 			wantUa:    0.5,
 			wantUb:    0.5,
 		},
 		{
 			name:    "Parallel Lines (No Intersection)",
-			aStart:  Vec2{X: 0, Y: 0},
-			aEnd:    Vec2{X: 10, Y: 0},
-			bStart:  Vec2{X: 0, Y: 5},
-			bEnd:    Vec2{X: 10, Y: 5},
+			aStart:  v.Vec{X: 0, Y: 0},
+			aEnd:    v.Vec{X: 10, Y: 0},
+			bStart:  v.Vec{X: 0, Y: 5},
+			bEnd:    v.Vec{X: 10, Y: 5},
 			wantHit: false,
 		},
 		{
 			name:      "Endpoint Intersection",
-			aStart:    Vec2{X: 0, Y: 0},
-			aEnd:      Vec2{X: 5, Y: 5},
-			bStart:    Vec2{X: 5, Y: 5},
-			bEnd:      Vec2{X: 10, Y: 0},
+			aStart:    v.Vec{X: 0, Y: 0},
+			aEnd:      v.Vec{X: 5, Y: 5},
+			bStart:    v.Vec{X: 5, Y: 5},
+			bEnd:      v.Vec{X: 10, Y: 0},
 			wantHit:   true,
-			wantHitPt: Vec2{X: 5, Y: 5},
+			wantHitPt: v.Vec{X: 5, Y: 5},
 			wantUa:    1.0,
 			wantUb:    0.0,
 		},
 		{
 			name:    "Missed Intersection - Outside Segment A (Ua > 1)",
-			aStart:  Vec2{X: 0, Y: 0},
-			aEnd:    Vec2{X: 2, Y: 2},
-			bStart:  Vec2{X: 0, Y: 10},
-			bEnd:    Vec2{X: 10, Y: 0},
+			aStart:  v.Vec{X: 0, Y: 0},
+			aEnd:    v.Vec{X: 2, Y: 2},
+			bStart:  v.Vec{X: 0, Y: 10},
+			bEnd:    v.Vec{X: 10, Y: 0},
 			wantHit: false,
 		},
 		{
 			name:    "Missed Intersection - Outside Segment B (Ub < 0)",
-			aStart:  Vec2{X: 0, Y: 0},
-			aEnd:    Vec2{X: 10, Y: 10},
-			bStart:  Vec2{X: 6, Y: 4},
-			bEnd:    Vec2{X: 10, Y: 0},
+			aStart:  v.Vec{X: 0, Y: 0},
+			aEnd:    v.Vec{X: 10, Y: 10},
+			bStart:  v.Vec{X: 6, Y: 4},
+			bEnd:    v.Vec{X: 10, Y: 0},
 			wantHit: false,
 		},
 		{
 			name:      "T-shaped Intersection",
-			aStart:    Vec2{X: 5, Y: 0},
-			aEnd:      Vec2{X: 5, Y: 10},
-			bStart:    Vec2{X: 0, Y: 5},
-			bEnd:      Vec2{X: 10, Y: 5},
+			aStart:    v.Vec{X: 5, Y: 0},
+			aEnd:      v.Vec{X: 5, Y: 10},
+			bStart:    v.Vec{X: 0, Y: 5},
+			bEnd:      v.Vec{X: 10, Y: 5},
 			wantHit:   true,
-			wantHitPt: Vec2{X: 5, Y: 5},
+			wantHitPt: v.Vec{X: 5, Y: 5},
 			wantUa:    0.5,
 			wantUb:    0.5,
 		},
@@ -502,8 +504,8 @@ func init() {
 }
 
 func TestMatrixScale(t *testing.T) {
-	vector := Vec2{X: 10, Y: -20}
-	expected := Vec2{X: 5, Y: -40}
+	vector := v.Vec{X: 10, Y: -20}
+	expected := v.Vec{X: 5, Y: -40}
 	matrix := Matrix3x3{}
 	matrix.Scale(0.5, 2)
 	transformed := matrix.Apply(vector)
@@ -512,8 +514,8 @@ func TestMatrixScale(t *testing.T) {
 	}
 }
 func TestMatrixRotate(t *testing.T) {
-	vector := Vec2{X: 10, Y: 10}
-	expected := Vec2{X: -10, Y: 10}
+	vector := v.Vec{X: 10, Y: 10}
+	expected := v.Vec{X: -10, Y: 10}
 	matrix := Matrix3x3{}
 	matrix.Rotate(Pi / 2)
 	transformed := matrix.Apply(vector)
@@ -526,12 +528,12 @@ func TestMatrixRotate(t *testing.T) {
 }
 
 func TestCompoundMatrix(t *testing.T) {
-	vector := Vec2{X: 10, Y: 10}
-	expected := Vec2{X: 5, Y: 15}
+	vector := v.Vec{X: 10, Y: 10}
+	expected := v.Vec{X: 5, Y: 15}
 	matrix := NewMatrix3x3(
-		Vec2{X: 0.5, Y: 0.5},
+		v.Vec{X: 0.5, Y: 0.5},
 		Pi/2,
-		Vec2{X: 10, Y: 10},
+		v.Vec{X: 10, Y: 10},
 	)
 	transformed := matrix.Apply(vector)
 	if math.Abs(transformed.X-expected.X) > delta {
@@ -546,9 +548,9 @@ func TestTranslateVertices(t *testing.T) {
 	// Create the ts shape with no modifications
 	ts := make(Shape, len(testShape))
 
-	testShape.TranslateVerticesToTarget(ts, Vec2One)
+	testShape.TranslateVerticesToTarget(ts, v.One)
 	// Assert that both shapes are equal
-	unit := Vec2One
+	unit := v.One
 	if !ts[0].Equals(testShape[0].Add(unit)) {
 		t.Errorf("Vertex 0 mismatch. Expected: %v, Got: %v",
 			testShape[0].Add(unit), ts[0])
@@ -571,7 +573,7 @@ func TestShapeTransformByMatrixToTarget(t *testing.T) {
 	expected := ShapeFromCoords(1, 1, 0, 1, 0, 0, 1, 0)
 	expected.Recenter()
 	transformed := make(Shape, len(testShape))
-	matrix := NewMatrix3x3(Vec2One, Pi, Vec2{})
+	matrix := NewMatrix3x3(v.One, Pi, v.Vec{})
 	testShape.TransformByMatrixToTarget(transformed, matrix)
 
 	// Since we rotated a box 180º, the edges are the same, but offset by 1.
@@ -589,23 +591,23 @@ func TestShapeTransformByMatrixToTarget(t *testing.T) {
 }
 
 func TestVelocityAccumulation(t *testing.T) {
-	p := NewPointMass(0.2, Vec2{X: 0, Y: 0})
-	p.Force = p.Force.Add(Vec2{X: 1, Y: 2})
-	p.Force = p.Force.Add(Vec2{X: 1, Y: 2})
-	p.Force = p.Force.Add(Vec2{X: 1, Y: 2})
+	p := NewPointMass(0.2, v.Vec{X: 0, Y: 0})
+	p.Force = p.Force.Add(v.Vec{X: 1, Y: 2})
+	p.Force = p.Force.Add(v.Vec{X: 1, Y: 2})
+	p.Force = p.Force.Add(v.Vec{X: 1, Y: 2})
 
 	p.Integrate(1.0)
 
-	expectedVelocity := Vec2{X: 3, Y: 6}.DivS(0.2)
+	expectedVelocity := v.Vec{X: 3, Y: 6}.DivS(0.2)
 	if !p.Velocity.Equals(expectedVelocity) {
 		t.Errorf("The velocity did not accumulate as expected! Got: %v, Expected: %v", p.Velocity, expectedVelocity)
 	}
 
-	if !p.Force.Equals(Vec2{X: 0, Y: 0}) {
+	if !p.Force.Equals(v.Vec{X: 0, Y: 0}) {
 		t.Errorf("After integrating a point mass, the force should reset to 0! Got: %v", p.Force)
 	}
 
-	expectedPosition := Vec2{X: 3, Y: 6}.DivS(0.2)
+	expectedPosition := v.Vec{X: 3, Y: 6}.DivS(0.2)
 	if !p.Position.Equals(expectedPosition) {
 		t.Errorf("The position of the point mass should be modified on the same integration the velocity is modified! Got: %v, Expected: %v", p.Position, expectedPosition)
 	}
@@ -816,15 +818,15 @@ func assertVertices(t *testing.T, shape Shape, want Shape) {
 var delta float64 = 1e-14
 
 func TestVec2Perp(t *testing.T) {
-	vec1 := Vec2{X: 0, Y: 1}
+	vec1 := v.Vec{X: 0, Y: 1}
 	vecPerp := vec1.Perp()
 	if math.Abs(vecPerp.X-(-vec1.Y)) > delta || math.Abs(vecPerp.Y-vec1.X) > delta {
 		t.Error("Perpendicular test failed!")
 	}
 }
 func TestVec2Dist(t *testing.T) {
-	vec1 := Vec2{X: 4, Y: 8}
-	vec2 := Vec2{X: 14, Y: 13}
+	vec1 := v.Vec{X: 4, Y: 8}
+	vec2 := v.Vec{X: 14, Y: 13}
 	dx := float64(4 - 14)
 	dy := float64(8 - 13)
 	dis := vec1.Dist(vec2)
@@ -838,8 +840,8 @@ func TestVec2Dist(t *testing.T) {
 	}
 }
 func TestVec2Math(t *testing.T) {
-	vec1 := Vec2{X: 4, Y: 6}
-	vec2 := Vec2{X: 9, Y: 7}
+	vec1 := v.Vec{X: 4, Y: 6}
+	vec2 := v.Vec{X: 9, Y: 7}
 	dot := vec1.Dot(vec2)
 	expectedDot := float64(4*9 + 6*7)
 	if math.Abs(dot-expectedDot) > delta {
@@ -853,8 +855,8 @@ func TestVec2Math(t *testing.T) {
 }
 
 func TestLineLerp(t *testing.T) {
-	pt1 := Vec2{X: 0, Y: 0}
-	pt2 := Vec2{X: 10, Y: 10}
+	pt1 := v.Vec{X: 0, Y: 0}
+	pt2 := v.Vec{X: 10, Y: 10}
 
 	// Edge cases
 	if !pt1.Lerp(pt2, 0).Equals(pt1) {
@@ -873,8 +875,8 @@ func TestLineLerp(t *testing.T) {
 }
 
 func TestLineLerpCentralized(t *testing.T) {
-	pt1 := Vec2{X: -10, Y: -10}
-	pt2 := Vec2{X: 10, Y: 10}
+	pt1 := v.Vec{X: -10, Y: -10}
+	pt2 := v.Vec{X: 10, Y: 10}
 
 	// Edge cases
 	if !pt1.Lerp(pt2, 0).Equals(pt1) {
@@ -886,7 +888,7 @@ func TestLineLerpCentralized(t *testing.T) {
 
 	// Mid-way
 	result := pt1.Lerp(pt2, 0.5)
-	if result.DistSq(Vec2{X: 0, Y: 0}) > delta {
+	if result.DistSq(v.Vec{X: 0, Y: 0}) > delta {
 		t.Errorf("Failed to calculate point in line correctly at ratio 0.5. Expected: (0,0), Got: %v", result)
 	}
 }
@@ -894,9 +896,9 @@ func TestLineLerpCentralized(t *testing.T) {
 func TestBroadPhaseCandidatesDeduplicatesAndOrdersPairs(t *testing.T) {
 	w := NewWorld()
 	bodies := []*Body{
-		{AABB: NewAABB(Vec2{X: 0, Y: 0}, Vec2{X: 2, Y: 2})},
-		{AABB: NewAABB(Vec2{X: 1, Y: 1}, Vec2{X: 3, Y: 3})},
-		{AABB: NewAABB(Vec2{X: 10, Y: 10}, Vec2{X: 11, Y: 11})},
+		{AABB: NewAABB(v.Vec{X: 0, Y: 0}, v.Vec{X: 2, Y: 2})},
+		{AABB: NewAABB(v.Vec{X: 1, Y: 1}, v.Vec{X: 3, Y: 3})},
+		{AABB: NewAABB(v.Vec{X: 10, Y: 10}, v.Vec{X: 11, Y: 11})},
 	}
 
 	pairs := w.broadPhaseCandidates(bodies)
@@ -919,7 +921,7 @@ func TestBroadPhaseCandidatesKeepOversizedBodiesOutOfCells(t *testing.T) {
 	bodies := []*Body{
 		{AABB: w.WorldLimits()},
 		{AABB: w.WorldLimits()},
-		{AABB: NewAABB(Vec2{X: 0, Y: 0}, Vec2{X: 1, Y: 1})},
+		{AABB: NewAABB(v.Vec{X: 0, Y: 0}, v.Vec{X: 1, Y: 1})},
 	}
 
 	pairs := w.broadPhaseCandidates(bodies)
@@ -936,9 +938,9 @@ func TestBroadPhaseCandidatesKeepOversizedBodiesOutOfCells(t *testing.T) {
 }
 
 func TestClosestCollisionEdgesMatchesBruteForceSearch(t *testing.T) {
-	body := NewBody(RegularPolygon(10, 32), Vec2{}, 0, 1)
-	point := Vec2{X: 2.75, Y: -1.5}
-	pointNormal := Vec2{X: 1, Y: 0}
+	body := NewBody(RegularPolygon(10, 32), v.Vec{}, 0, 1)
+	point := v.Vec{X: 2.75, Y: -1.5}
+	pointNormal := v.Vec{X: 1, Y: 0}
 
 	away, same, foundAway := body.closestCollisionEdges(point, pointNormal)
 	bruteAway, bruteSame, bruteFoundAway := CollisionInfo{}, CollisionInfo{}, false
@@ -961,12 +963,12 @@ func TestClosestCollisionEdgesMatchesBruteForceSearch(t *testing.T) {
 
 func TestWorldUpdateDoesNotRebuildStaticBodyAABB(t *testing.T) {
 	w := NewWorld()
-	body := NewStaticBody(Square(2), Vec2{}, 0, w)
+	body := NewStaticBody(Square(2), v.Vec{}, 0, w)
 	original := body.AABB
 
 	// Mutate directly to make an accidental per-frame AABB rebuild observable.
 	// Normal transform APIs already force an AABB update when moving statics.
-	body.PointMasses[0].Position = Vec2{X: 100, Y: 100}
+	body.PointMasses[0].Position = v.Vec{X: 100, Y: 100}
 	w.Update(1.0 / 60)
 
 	if body.AABB != original {

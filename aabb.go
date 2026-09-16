@@ -1,19 +1,21 @@
 package jel
 
+import "github.com/setanarut/v"
+
 // AABB is an axis-aligned bounding box. Valid is false for an empty/unset box.
 type AABB struct {
 	Valid bool
-	Min   Vec2
-	Max   Vec2
+	Min   v.Vec
+	Max   v.Vec
 }
 
 // NewAABBOf creates an AABB enclosing the given points.
-func NewAABBOf(points ...Vec2) AABB {
+func NewAABBOf(points ...v.Vec) AABB {
 	return NewAABBFromPoints(points)
 }
 
 // NewAABB creates a valid AABB with the given min and max corners.
-func NewAABB(min, max Vec2) AABB {
+func NewAABB(min, max v.Vec) AABB {
 	return AABB{
 		Valid: true,
 		Min:   min,
@@ -22,7 +24,7 @@ func NewAABB(min, max Vec2) AABB {
 }
 
 // NewAABBFromPoints creates an AABB enclosing all the given points.
-func NewAABBFromPoints(points []Vec2) (aabb AABB) {
+func NewAABBFromPoints(points []v.Vec) (aabb AABB) {
 	aabb.ExpandToIncludePoints(points)
 	return
 }
@@ -39,7 +41,7 @@ func (a *AABB) Clear() {
 
 // Expanded returns a copy of the AABB grown outward by margin on every side.
 func (a AABB) Expanded(margin float64) AABB {
-	m := Vec2{X: margin, Y: margin}
+	m := v.Vec{X: margin, Y: margin}
 	return AABB{
 		Valid: a.Valid,
 		Min:   a.Min.Sub(m),
@@ -48,7 +50,7 @@ func (a AABB) Expanded(margin float64) AABB {
 }
 
 // ExpandToInclude grows the box, if needed, so it contains point.
-func (a *AABB) ExpandToInclude(point Vec2) {
+func (a *AABB) ExpandToInclude(point v.Vec) {
 	if !a.Valid {
 		a.Min = point
 		a.Max = point
@@ -60,14 +62,14 @@ func (a *AABB) ExpandToInclude(point Vec2) {
 }
 
 // ExpandToIncludePoints grows the box, if needed, so it contains all points.
-func (a *AABB) ExpandToIncludePoints(points []Vec2) {
+func (a *AABB) ExpandToIncludePoints(points []v.Vec) {
 	for _, p := range points {
 		a.ExpandToInclude(p)
 	}
 }
 
 // Contains reports whether point lies inside the box (inclusive).
-func (a AABB) Contains(point Vec2) bool {
+func (a AABB) Contains(point v.Vec) bool {
 	if !a.Valid {
 		return false
 	}

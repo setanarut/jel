@@ -3,6 +3,8 @@ package jel
 
 import (
 	"math"
+
+	"github.com/setanarut/v"
 )
 
 const (
@@ -16,6 +18,8 @@ const (
 	// epsilonSpring is the minimum distance between two anchor points below which
 	// a spring force is not computed, to avoid division by (near) zero.
 	epsilonSpring float64 = 5e-07
+
+	epsilonUnit float64 = 1e-8
 )
 
 // Infinity represents positive infinity, commonly used to mark a PointMass
@@ -48,12 +52,12 @@ type CollisionInfo struct {
 	// involved in the collision, or -1 if not applicable.
 	BodyBpmB int
 	// HitPt is the world-space point at which the collision occurred.
-	HitPt Vec2
+	HitPt v.Vec
 	// EdgeD is the interpolation factor (0-1) along the BodyB edge
 	// (BodyBpmA -> BodyBpmB) at which the hit point lies.
 	EdgeD float64
 	// Normal is the collision normal, typically pointing from BodyB toward BodyA.
-	Normal Vec2
+	Normal v.Vec
 	// Penetration is the overlap depth between the colliding shapes.
 	Penetration float64
 }
@@ -135,7 +139,7 @@ func polygonAreaFromPointMasses(points []*PointMass) float64 {
 // LineIntersectResult holds the outcome of a successful LineIntersect call.
 type LineIntersectResult struct {
 	// HitPt is the world-space point where the two line segments intersect.
-	HitPt Vec2
+	HitPt v.Vec
 	// Ua is the interpolation factor (0-1) along lineA at which the
 	// intersection occurs.
 	Ua float64
@@ -149,7 +153,7 @@ type LineIntersectResult struct {
 // segments intersect within their bounds; otherwise it returns a zero value
 // and false (including the degenerate case where the segments are parallel
 // or collinear).
-func LineIntersect(aStart, aEnd, bStart, bEnd Vec2) (LineIntersectResult, bool) {
+func LineIntersect(aStart, aEnd, bStart, bEnd v.Vec) (LineIntersectResult, bool) {
 	r := aEnd.Sub(aStart)
 	s := bEnd.Sub(bStart)
 	denom := r.Cross(s)
@@ -209,21 +213,21 @@ type PointMass struct {
 	// the point as immovable/static; Integrate becomes a no-op in that case.
 	Mass float64
 	// Position is the current world-space position of the point.
-	Position Vec2
+	Position v.Vec
 	// Velocity is the current velocity of the point.
-	Velocity Vec2
+	Velocity v.Vec
 	// Force is the force currently accumulated on the point, to be applied
 	// during the next call to Integrate. It is reset to zero after each
 	// integration step.
-	Force Vec2
+	Force v.Vec
 	// Normal is an optional surface normal associated with the point,
 	// typically used for collision response.
-	Normal Vec2
+	Normal v.Vec
 }
 
 // NewPointMass creates a new PointMass with the given mass and initial
 // position. Velocity, Force, and Normal are left at their zero values.
-func NewPointMass(mass float64, position Vec2) *PointMass {
+func NewPointMass(mass float64, position v.Vec) *PointMass {
 	return &PointMass{
 		Mass:     mass,
 		Position: position,
@@ -245,18 +249,18 @@ func (p *PointMass) Integrate(elapsed float64) {
 	elapsedMass := elapsed / p.Mass
 	p.Velocity = p.Velocity.Add(p.Force.Scale(elapsedMass))
 	p.Position = p.Position.Add(p.Velocity.Scale(elapsed))
-	p.Force = Vec2{}
+	p.Force = v.Vec{}
 }
 
 // ApplyForce accumulates force into the point mass's current Force, to be
 // applied on the next call to Integrate.
-func (p *PointMass) ApplyForce(force Vec2) {
+func (p *PointMass) ApplyForce(force v.Vec) {
 	p.Force = p.Force.Add(force)
 }
 
 // AveragePointMassPosition returns the centroid (mean position) of pointMasses.
-// Returns the zero Vec2 if pointMasses is empty.
-func AveragePointMassPosition(pointMasses []*PointMass) (centroid Vec2) {
+// Returns the zero v.Vec if pointMasses is empty.
+func AveragePointMassPosition(pointMasses []*PointMass) (centroid v.Vec) {
 	if len(pointMasses) == 0 {
 		return centroid
 	}
@@ -267,8 +271,8 @@ func AveragePointMassPosition(pointMasses []*PointMass) (centroid Vec2) {
 }
 
 // AveragePointMassVelocity returns the mean velocity across pointMasses.
-// Returns the zero Vec2 if pointMasses is empty.
-func AveragePointMassVelocity(pointMasses []*PointMass) (average Vec2) {
+// Returns the zero v.Vec if pointMasses is empty.
+func AveragePointMassVelocity(pointMasses []*PointMass) (average v.Vec) {
 	if len(pointMasses) == 0 {
 		return average
 	}
@@ -279,10 +283,10 @@ func AveragePointMassVelocity(pointMasses []*PointMass) (average Vec2) {
 }
 
 // AverageVec2 returns the mean of the given vectors.
-// Returns the zero Vec2 if vectors is empty.
-func AverageVec2(vectors []Vec2) (average Vec2) {
+// Returns the zero v.Vec if vectors is empty.
+func AverageVec2(vectors []v.Vec) (average v.Vec) {
 	if len(vectors) == 0 {
-		return Vec2{}
+		return v.Vec{}
 	}
 	for i := range vectors {
 		average = average.Add(vectors[i])

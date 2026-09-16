@@ -10,6 +10,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 	"github.com/setanarut/jel"
+	"github.com/setanarut/v"
 )
 
 var solidImage = ebiten.NewImage(1, 1)
@@ -63,7 +64,7 @@ type JelEbitenRenderer struct {
 	ShowBodyEdges           bool
 	ShowTPS_FPS             bool
 	Antialias               bool
-	DrawOffset              jel.Vec2
+	DrawOffset              v.Vec
 	PixelsPerMeter          float64
 	LineThickness           float64
 	Colors                  Colors
@@ -74,14 +75,14 @@ type JelEbitenRenderer struct {
 	vCount                  uint16
 	iCount                  uint32
 	fillPointMassPath       vector.Path
-	tmpPoints               []jel.Vec2
+	tmpPoints               []v.Vec
 	tmpIndices              []int
 	isDragging              bool
 	dragBody                *jel.Body
 	dragPoint               int
-	targetPos               jel.Vec2
-	prevTarget              jel.Vec2
-	grabOffset              jel.Vec2
+	targetPos               v.Vec
+	prevTarget              v.Vec
+	grabOffset              v.Vec
 }
 
 func NewJelEbitenRenderer(pixelsPerMeter float64) *JelEbitenRenderer {
@@ -94,7 +95,7 @@ func NewJelEbitenRenderer(pixelsPerMeter float64) *JelEbitenRenderer {
 		UseTriangleFan:   false,
 		vertices:         make([]ebiten.Vertex, 10000),
 		indices:          make([]uint16, 30000),
-		tmpPoints:        make([]jel.Vec2, 0, 64),
+		tmpPoints:        make([]v.Vec, 0, 64),
 		tmpIndices:       make([]int, 0, 128),
 	}
 }
@@ -130,7 +131,7 @@ func (r *JelEbitenRenderer) SetAll(enabled bool) {
 	r.ShowJoints = enabled
 	r.ShowBodyEdges = enabled
 }
-func signedArea(points []jel.Vec2) float64 {
+func signedArea(points []v.Vec) float64 {
 	area := 0.0
 	n := len(points)
 	for i := range n {
@@ -139,14 +140,14 @@ func signedArea(points []jel.Vec2) float64 {
 	}
 	return area / 2.0
 }
-func isConvex(a, b, c jel.Vec2, isCW bool) bool {
+func isConvex(a, b, c v.Vec, isCW bool) bool {
 	cross := (b.X-a.X)*(c.Y-b.Y) - (b.Y-a.Y)*(c.X-b.X)
 	if isCW {
 		return cross < 0
 	}
 	return cross > 0
 }
-func pointInTriangle(p, a, b, c jel.Vec2) bool {
+func pointInTriangle(p, a, b, c v.Vec) bool {
 	areaABC := math.Abs((a.X*(b.Y-c.Y) + b.X*(c.Y-a.Y) + c.X*(a.Y-b.Y)) / 2.0)
 	areaPBC := math.Abs((p.X*(b.Y-c.Y) + b.X*(c.Y-p.Y) + c.X*(p.Y-b.Y)) / 2.0)
 	areaPCA := math.Abs((p.X*(c.Y-a.Y) + c.X*(a.Y-p.Y) + a.X*(p.Y-c.Y)) / 2.0)
@@ -154,7 +155,7 @@ func pointInTriangle(p, a, b, c jel.Vec2) bool {
 	epsilon := 1e-9
 	return math.Abs(areaABC-(areaPBC+areaPCA+areaPAB)) < epsilon
 }
-func earClip(points []jel.Vec2) [][3]int {
+func earClip(points []v.Vec) [][3]int {
 	n := len(points)
 	if n < 3 {
 		return nil
@@ -206,7 +207,7 @@ func earClip(points []jel.Vec2) [][3]int {
 	}
 	return triangles
 }
-func (r *JelEbitenRenderer) fillPolygon(center jel.Vec2, points []jel.Vec2, clr color.RGBA) {
+func (r *JelEbitenRenderer) fillPolygon(center v.Vec, points []v.Vec, clr color.RGBA) {
 	n := len(points)
 	if n < 3 {
 		return
@@ -271,7 +272,7 @@ func (r *JelEbitenRenderer) fillPolygon(center jel.Vec2, points []jel.Vec2, clr 
 		r.iCount += 3
 	}
 }
-func (r *JelEbitenRenderer) appendPolygon(path *vector.Path, points []jel.Vec2) {
+func (r *JelEbitenRenderer) appendPolygon(path *vector.Path, points []v.Vec) {
 	if len(points) < 3 {
 		return
 	}
@@ -281,7 +282,7 @@ func (r *JelEbitenRenderer) appendPolygon(path *vector.Path, points []jel.Vec2) 
 	}
 	path.Close()
 }
-func (r *JelEbitenRenderer) addLineAA(a, b jel.Vec2, thickness float64, clr color.RGBA) {
+func (r *JelEbitenRenderer) addLineAA(a, b v.Vec, thickness float64, clr color.RGBA) {
 	dir := b.Sub(a)
 	mag := dir.Mag()
 	if mag < 0.0001 {
@@ -543,21 +544,21 @@ func (r *JelEbitenRenderer) colorStatic(s bool, defaultColor color.RGBA) color.R
 	}
 	return defaultColor
 }
-func (r *JelEbitenRenderer) WorldToScreen(v jel.Vec2) jel.Vec2 {
+func (r *JelEbitenRenderer) WorldToScreen(v v.Vec) v.Vec {
 	return v.Scale(r.PixelsPerMeter)
 }
-func (r *JelEbitenRenderer) ScreenToWorld(v jel.Vec2) jel.Vec2 {
+func (r *JelEbitenRenderer) ScreenToWorld(v v.Vec) v.Vec {
 	return v.DivS(r.PixelsPerMeter)
 }
-func (r *JelEbitenRenderer) CursorPosition() jel.Vec2 {
+func (r *JelEbitenRenderer) CursorPosition() v.Vec {
 	x, y := ebiten.CursorPosition()
-	return jel.Vec2{X: float64(x), Y: float64(y)}
+	return v.Vec{X: float64(x), Y: float64(y)}
 }
-func (r *JelEbitenRenderer) CursorWorldPosition() jel.Vec2 {
+func (r *JelEbitenRenderer) CursorWorldPosition() v.Vec {
 	return r.ScreenToWorld(r.CursorPosition())
 }
-func (r *JelEbitenRenderer) getAABBCorners(a *jel.AABB) [4]jel.Vec2 {
-	return [4]jel.Vec2{
+func (r *JelEbitenRenderer) getAABBCorners(a *jel.AABB) [4]v.Vec {
+	return [4]v.Vec{
 		{X: a.Min.X, Y: a.Min.Y},
 		{X: a.Max.X, Y: a.Min.Y},
 		{X: a.Max.X, Y: a.Max.Y},
@@ -600,7 +601,7 @@ func hsvToRGB(h, s, v float64) color.RGBA {
 		A: 255,
 	}
 }
-func (r *JelEbitenRenderer) addCircle(center jel.Vec2, radius float64, clr color.RGBA) {
+func (r *JelEbitenRenderer) addCircle(center v.Vec, radius float64, clr color.RGBA) {
 	if radius < 1 {
 		radius = 2
 	}
@@ -629,15 +630,15 @@ func (r *JelEbitenRenderer) addCircle(center jel.Vec2, radius float64, clr color
 		r.iCount += 3
 	}
 }
-func (r *JelEbitenRenderer) addStrokeCircle(center jel.Vec2, radius float64, thickness float64, clr color.RGBA) {
+func (r *JelEbitenRenderer) addStrokeCircle(center v.Vec, radius float64, thickness float64, clr color.RGBA) {
 	if radius < 1 {
 		radius = 2
 	}
 	segments := 16
-	prev := jel.Vec2{X: center.X + radius, Y: center.Y}
+	prev := v.Vec{X: center.X + radius, Y: center.Y}
 	for i := 1; i <= segments; i++ {
 		angle := float64(i) / float64(segments) * 2 * math.Pi
-		curr := jel.Vec2{
+		curr := v.Vec{
 			X: center.X + math.Cos(angle)*radius,
 			Y: center.Y + math.Sin(angle)*radius,
 		}

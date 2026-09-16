@@ -7,9 +7,8 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/setanarut/jel"
 	"github.com/setanarut/jel/examples/renderer"
+	"github.com/setanarut/v"
 )
-
-type Vec2 = jel.Vec2
 
 const (
 	fixedTimeStep         = 1.0 / 60.0
@@ -21,7 +20,7 @@ func NewGame(ppm float64) *Game {
 		world: jel.NewWorld(),
 	}
 	g.rnd = renderer.NewJelEbitenRenderer(ppm)
-	g.ScreenSize = jel.Vec2{854, 480}
+	g.ScreenSize = v.Vec{854, 480}
 	g.WorldSize = g.rnd.ScreenToWorld(g.ScreenSize)
 	g.Initalize()
 	return g
@@ -45,17 +44,17 @@ func (g *Game) Initalize() {
 	ramp1X := center.X - 11.5
 	ramp2X := center.X
 	ramp3X := center.X + 11.5
-	g.createFrictionRamp(Vec2{ramp1X, rampY}, rampWidth, rampThickness, angle, lowFriction)
-	g.createFrictionRamp(Vec2{ramp2X, rampY}, rampWidth, rampThickness, angle, mediumFriction)
-	g.createFrictionRamp(Vec2{ramp3X, rampY}, rampWidth, rampThickness, angle, highFriction)
+	g.createFrictionRamp(v.Vec{ramp1X, rampY}, rampWidth, rampThickness, angle, lowFriction)
+	g.createFrictionRamp(v.Vec{ramp2X, rampY}, rampWidth, rampThickness, angle, mediumFriction)
+	g.createFrictionRamp(v.Vec{ramp3X, rampY}, rampWidth, rampThickness, angle, highFriction)
 	g.createSlidingBox(ramp1X, rampY, rampWidth, angle, 0.55)
 	g.createSlidingBox(ramp2X, rampY, rampWidth, angle, 0.55)
 	g.createSlidingBox(ramp3X, rampY, rampWidth, angle, 0.55)
 }
 
 type Game struct {
-	ScreenSize jel.Vec2
-	WorldSize  jel.Vec2
+	ScreenSize v.Vec
+	WorldSize  v.Vec
 	world      *jel.World
 	rnd        *renderer.JelEbitenRenderer
 	material   int
@@ -79,22 +78,22 @@ func (g *Game) makeWalls(materialID int) {
 	overlap := 0.5
 	extend := 200.0
 	horizontalShape := jel.Rectangle(w+2*extend, thickness)
-	bottom := jel.NewBody(horizontalShape, Vec2{w / 2.0, h + ht - overlap}, 0, jel.Infinity)
+	bottom := jel.NewBody(horizontalShape, v.Vec{w / 2.0, h + ht - overlap}, 0, jel.Infinity)
 	bottom.AddComponent(jel.DefaultSpringComponent())
 	bottom.Material = materialID
-	top := jel.NewBody(horizontalShape, Vec2{w / 2.0, -ht + overlap}, 0, jel.Infinity)
+	top := jel.NewBody(horizontalShape, v.Vec{w / 2.0, -ht + overlap}, 0, jel.Infinity)
 	top.AddComponent(jel.DefaultSpringComponent())
 	top.Material = materialID
 	verticalShape := jel.Rectangle(thickness, h+2*extend)
-	left := jel.NewBody(verticalShape, Vec2{-ht + overlap, h / 2.0}, 0, jel.Infinity)
+	left := jel.NewBody(verticalShape, v.Vec{-ht + overlap, h / 2.0}, 0, jel.Infinity)
 	left.AddComponent(jel.DefaultSpringComponent())
 	left.Material = materialID
-	right := jel.NewBody(verticalShape, Vec2{w + ht - overlap, h / 2.0}, 0, jel.Infinity)
+	right := jel.NewBody(verticalShape, v.Vec{w + ht - overlap, h / 2.0}, 0, jel.Infinity)
 	right.AddComponent(jel.DefaultSpringComponent())
 	right.Material = materialID
 	g.world.AddBodies(bottom, top, left, right)
 }
-func (g *Game) createFrictionRamp(pos Vec2, w, h, angle float64, materialID int) *jel.Body {
+func (g *Game) createFrictionRamp(pos v.Vec, w, h, angle float64, materialID int) *jel.Body {
 	shape := jel.Rectangle(w, h)
 	body := jel.NewBody(shape, pos, angle, jel.Infinity, g.world)
 	body.AddComponent(jel.DefaultSpringComponent())
@@ -107,11 +106,11 @@ func (g *Game) createSlidingBox(rampX, rampY, rampWidth, angle, mass float64) *j
 	localY := -(0.5 + 0.5 + 0.08)
 	c := math.Cos(angle)
 	s := math.Sin(angle)
-	worldOffset := jel.Vec2{
+	worldOffset := v.Vec{
 		X: localX*c - localY*s,
 		Y: localX*s + localY*c,
 	}
-	pos := Vec2{rampX + worldOffset.X, rampY + worldOffset.Y}
+	pos := v.Vec{rampX + worldOffset.X, rampY + worldOffset.Y}
 	body := jel.NewBody(shape, pos, angle, mass, g.world)
 	body.AddComponent(jel.NewGravityComponent(0, 9.8, true))
 	body.AddComponent(jel.NewShapeMatchComponent(200, 5, nil))

@@ -8,6 +8,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/setanarut/jel"
 	"github.com/setanarut/jel/examples/renderer"
+	"github.com/setanarut/v"
 )
 
 type Scene interface {
@@ -35,9 +36,9 @@ type Game struct {
 	World            *jel.World
 	Body             *jel.Body
 	PPM              float64
-	ScreenSize       jel.Vec2
-	WorldSize        jel.Vec2
-	Center           jel.Vec2
+	ScreenSize       v.Vec
+	WorldSize        v.Vec
+	Center           v.Vec
 	Debugui          debugui.DebugUI
 	BodyPanelPos     image.Rectangle
 	RendererPanelPos image.Rectangle
@@ -56,7 +57,7 @@ func NewGame(ppm float64) *Game {
 	g.Renderer = renderer.NewJelEbitenRenderer(ppm)
 	g.PPM = ppm
 	g.Renderer.PixelsPerMeter = ppm
-	g.ScreenSize = jel.Vec2{900, 480}
+	g.ScreenSize = v.Vec{900, 480}
 	g.WorldSize = g.Renderer.ScreenToWorld(g.ScreenSize)
 	ebiten.SetWindowSize(int(g.ScreenSize.X), int(g.ScreenSize.Y))
 	g.Initalize()
@@ -122,7 +123,7 @@ func (g *Game) Update() error {
 			e := ctx.Button("Reset")
 			e.On(func() {
 				g.Body.Reset()
-				g.Body.SetScaleAnglePosition(jel.Vec2One, 0, g.Center)
+				g.Body.SetScaleAnglePosition(v.One, 0, g.Center)
 			})
 			ctx.Text("Masses")
 			esmass := ctx.SliderF(&g.mass, 0, 20, 0.1, 2)
@@ -206,28 +207,28 @@ func (g *Game) MakeWalls(materialID int, l, r, b, t float64) {
 	verticalShape := jel.Rectangle(thickness, h-t-b)
 	bottom := jel.NewBody(
 		horizontalShape,
-		jel.Vec2{l + (w-l-r)/2, h - b + ht},
+		v.Vec{l + (w-l-r)/2, h - b + ht},
 		0,
 		jel.Infinity,
 	)
 	bottom.Material = materialID
 	top := jel.NewBody(
 		horizontalShape,
-		jel.Vec2{l + (w-l-r)/2, t - ht},
+		v.Vec{l + (w-l-r)/2, t - ht},
 		0,
 		jel.Infinity,
 	)
 	top.Material = materialID
 	left := jel.NewBody(
 		verticalShape,
-		jel.Vec2{l - ht, t + (h-t-b)/2},
+		v.Vec{l - ht, t + (h-t-b)/2},
 		0,
 		jel.Infinity,
 	)
 	left.Material = materialID
 	right := jel.NewBody(
 		verticalShape,
-		jel.Vec2{w - r + ht, t + (h-t-b)/2},
+		v.Vec{w - r + ht, t + (h-t-b)/2},
 		0,
 		jel.Infinity,
 	)

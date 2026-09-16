@@ -8,6 +8,7 @@ import (
 	"github.com/setanarut/jel"
 	"github.com/setanarut/jel/examples"
 	"github.com/setanarut/jel/examples/renderer"
+	"github.com/setanarut/v"
 )
 
 var rgb = renderer.Rgb
@@ -29,7 +30,7 @@ func (g *SceneCar) Update() {
 		}
 	}
 	if ebiten.IsKeyPressed(ebiten.KeySpace) {
-		g.carBody.AddVelocity(jel.FromAngle(g.carBody.DerivedAngle).Scale(0.4))
+		g.carBody.AddVelocity(v.FromAngle(g.carBody.DerivedAngle).Scale(0.4))
 		g.tire1.ApplyTorque(4)
 		g.tire2.ApplyTorque(4)
 	}
@@ -72,7 +73,7 @@ func main() {
 		log.Fatal(err)
 	}
 }
-func makePinnedWheel(mat int, pos jel.Vec2, r, mass float64, world *jel.World) *jel.Body {
+func makePinnedWheel(mat int, pos v.Vec, r, mass float64, world *jel.World) *jel.Body {
 	ball := jel.RegularPolygon(r, 12)
 	body := jel.NewBody(ball, pos, 0, mass, world)
 	body.AddComponent(jel.NewShapeMatchComponent(500, 10, nil))
@@ -81,7 +82,7 @@ func makePinnedWheel(mat int, pos jel.Vec2, r, mass float64, world *jel.World) *
 	body.Material = mat
 	return body
 }
-func makePoly(mat, n int, pos jel.Vec2, r, mass float64, world *jel.World) *jel.Body {
+func makePoly(mat, n int, pos v.Vec, r, mass float64, world *jel.World) *jel.Body {
 	ball := jel.RegularPolygon(r, n)
 	body := jel.NewBody(ball, pos, 0, mass, world)
 	body.UserData = rgb(22, 207, 99)
@@ -92,7 +93,7 @@ func makePoly(mat, n int, pos jel.Vec2, r, mass float64, world *jel.World) *jel.
 	return body
 }
 
-func makePinnedWheels(mat int, center jel.Vec2, world *jel.World) []*jel.Body {
+func makePinnedWheels(mat int, center v.Vec, world *jel.World) []*jel.Body {
 	clockRadius := 6.0
 	balls := 6
 	circleRadius := clockRadius * math.Sin(math.Pi/float64(balls))
@@ -103,13 +104,13 @@ func makePinnedWheels(mat int, center jel.Vec2, world *jel.World) []*jel.Body {
 		angle := math.Pi/2 - float64(h)*(2*math.Pi/float64(balls))
 		x := center.X + clockRadius*math.Cos(angle)
 		y := center.Y + clockRadius*math.Sin(angle)
-		pinnedWheels[h] = makePinnedWheel(mat, jel.Vec2{x, y}, circleRadius, 3, world)
+		pinnedWheels[h] = makePinnedWheel(mat, v.Vec{x, y}, circleRadius, 3, world)
 
 	}
 	return pinnedWheels
 }
 
-func makeCar(mat int, pos jel.Vec2, world *jel.World) (tire1, tire2, carBody *jel.Body) {
+func makeCar(mat int, pos v.Vec, world *jel.World) (tire1, tire2, carBody *jel.Body) {
 	const carBodyMass = 0.6
 	const tireMass = 0.5
 
@@ -146,7 +147,7 @@ func makeCar(mat int, pos jel.Vec2, world *jel.World) (tire1, tire2, carBody *je
 	tireShapeJoingLink1.Offset.Y += 0.4
 	wpos1 := tireShapeJoingLink1.Position()
 	c1 := jel.RegularPolygon(tireRadius, 12)
-	tire1 = jel.NewBody(c1, jel.Vec2{wpos1.X, wpos1.Y}, 0, tireMass, world)
+	tire1 = jel.NewBody(c1, v.Vec{wpos1.X, wpos1.Y}, 0, tireMass, world)
 	tire1.AddComponent(jel.NewSpringComponent(600, 5))
 	tire1.AddComponent(jel.DefaultShapeMatchComponent())
 	tire1.AddComponent(jel.NewPressureComponent(120))
@@ -159,7 +160,7 @@ func makeCar(mat int, pos jel.Vec2, world *jel.World) (tire1, tire2, carBody *je
 	tireShapeJoingLink2.Offset.Y += 0.4
 	wpos2 := tireShapeJoingLink2.Position()
 	c2 := jel.RegularPolygon(tireRadius, 12)
-	tire2 = jel.NewBody(c2, jel.Vec2{wpos2.X, wpos2.Y}, 0, tireMass, world)
+	tire2 = jel.NewBody(c2, v.Vec{wpos2.X, wpos2.Y}, 0, tireMass, world)
 	tire2.AddComponent(jel.NewSpringComponent(600, 5))
 	tire2.AddComponent(jel.DefaultShapeMatchComponent())
 	tire2.AddComponent(jel.NewPressureComponent(120))

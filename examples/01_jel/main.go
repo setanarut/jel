@@ -7,6 +7,7 @@ import (
 	"github.com/setanarut/jel"
 	"github.com/setanarut/jel/examples"
 	"github.com/setanarut/jel/examples/renderer"
+	"github.com/setanarut/v"
 )
 
 var rgb = renderer.Rgb
@@ -37,7 +38,7 @@ func main() {
 	}
 }
 
-func makeJel(h float64, center jel.Vec2, world *jel.World) *jel.Body {
+func makeJel(h float64, center v.Vec, world *jel.World) *jel.Body {
 	center.AddX(0.5)
 
 	s := jel.ShapeFromSVGPolygonPoints(examples.J)

@@ -2,6 +2,8 @@ package jel
 
 import (
 	"math"
+
+	"github.com/setanarut/v"
 )
 
 // Matrix3x3 represents a 2D affine transformation matrix.
@@ -11,69 +13,69 @@ import (
 type Matrix3x3 struct{ a1, b, c, d1, tx, ty float64 }
 
 // Clear resets the matrix to the identity transformation (zero-value).
-func (g *Matrix3x3) Clear() {
-	*g = Matrix3x3{}
+func (m *Matrix3x3) Clear() {
+	*m = Matrix3x3{}
 }
 
-// Apply transforms the given 2D vector 'v' by multiplying it with the matrix.
-func (g Matrix3x3) Apply(v Vec2) Vec2 {
-	return Vec2{
-		X: (g.a1+1)*v.X + g.b*v.Y + g.tx,
-		Y: g.c*v.X + (g.d1+1)*v.Y + g.ty,
+// Apply transforms the given 2D vector 'a' by multiplying it with the matrix.
+func (m Matrix3x3) Apply(a v.Vec) v.Vec {
+	return v.Vec{
+		X: (m.a1+1)*a.X + m.b*a.Y + m.tx,
+		Y: m.c*a.X + (m.d1+1)*a.Y + m.ty,
 	}
 }
 
 // Scale applies a scaling transformation to the matrix.
 // This effectively pre-multiplies the current matrix by a scaling matrix.
-func (g *Matrix3x3) Scale(x, y float64) {
-	a := (g.a1 + 1) * x
-	b := g.b * x
-	tx := g.tx * x
-	c := g.c * y
-	d := (g.d1 + 1) * y
-	ty := g.ty * y
+func (m *Matrix3x3) Scale(x, y float64) {
+	a := (m.a1 + 1) * x
+	b := m.b * x
+	tx := m.tx * x
+	c := m.c * y
+	d := (m.d1 + 1) * y
+	ty := m.ty * y
 
-	g.a1 = a - 1
-	g.b = b
-	g.c = c
-	g.d1 = d - 1
-	g.tx = tx
-	g.ty = ty
+	m.a1 = a - 1
+	m.b = b
+	m.c = c
+	m.d1 = d - 1
+	m.tx = tx
+	m.ty = ty
 }
 
 // Translate applies a translation offset to the matrix.
-func (g *Matrix3x3) Translate(tx, ty float64) {
-	g.tx += tx
-	g.ty += ty
+func (m *Matrix3x3) Translate(tx, ty float64) {
+	m.tx += tx
+	m.ty += ty
 }
 
 // Rotate applies a counter-clockwise rotation (in radians) to the matrix.
 // This effectively pre-multiplies the current matrix by a rotation matrix.
-func (g *Matrix3x3) Rotate(theta float64) {
+func (m *Matrix3x3) Rotate(theta float64) {
 	if theta == 0 {
 		return
 	}
 
 	sin, cos := math.Sincos(theta)
 
-	a := cos*(g.a1+1) - sin*g.c
-	b := cos*g.b - sin*(g.d1+1)
-	tx := cos*g.tx - sin*g.ty
-	c := sin*(g.a1+1) + cos*g.c
-	d := sin*g.b + cos*(g.d1+1)
-	ty := sin*g.tx + cos*g.ty
+	a := cos*(m.a1+1) - sin*m.c
+	b := cos*m.b - sin*(m.d1+1)
+	tx := cos*m.tx - sin*m.ty
+	c := sin*(m.a1+1) + cos*m.c
+	d := sin*m.b + cos*(m.d1+1)
+	ty := sin*m.tx + cos*m.ty
 
-	g.a1 = a - 1
-	g.b = b
-	g.c = c
-	g.d1 = d - 1
-	g.tx = tx
-	g.ty = ty
+	m.a1 = a - 1
+	m.b = b
+	m.c = c
+	m.d1 = d - 1
+	m.tx = tx
+	m.ty = ty
 }
 
 // NewMatrix3x3 returns a matrix that combines scale, rotation, and translation.
 // Transformation order: scale -> rotate -> translate.
-func NewMatrix3x3(scale Vec2, angle float64, pos Vec2) Matrix3x3 {
+func NewMatrix3x3(scale v.Vec, angle float64, pos v.Vec) Matrix3x3 {
 	// Fast path: no rotation
 	if angle == 0 {
 		// Fast path: no scale either (only translation)

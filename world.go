@@ -4,6 +4,8 @@ import (
 	"math"
 	"slices"
 	"sort"
+
+	"github.com/setanarut/v"
 )
 
 type World struct {
@@ -25,13 +27,13 @@ type World struct {
 	PenetrationThreshold float64
 
 	worldLimits          AABB
-	worldSize            Vec2
-	worldGridStep        Vec2
+	worldSize            v.Vec
+	worldGridStep        v.Vec
 	worldGridSubdivision int
-	subdivVec            Vec2
+	subdivVec            v.Vec
 	// Inverse of [World.worldGridStep] , for multiplication over coordinates when
 	// projecting AABBs into the world grid.
-	invWorldGridStep Vec2
+	invWorldGridStep v.Vec
 	// Whether the world is currently in a relaxation pass.
 	//
 	// See [World.RelaxWorld] and [World.RelaxBodies]
@@ -56,11 +58,11 @@ type World struct {
 // Parameters:
 //   - min: The minimum corner of the world bounds.
 //   - max: The maximum corner of the world bounds.
-func (w *World) SetWorldLimits(min, max Vec2) {
+func (w *World) SetWorldLimits(min, max v.Vec) {
 	w.worldLimits, w.worldSize = NewAABB(min, max), max.Sub(min)
 	// Divide the world into (by default) 4096 boxes (64 x 64) for broad-phase collision detection
 	w.worldGridStep = w.worldSize.DivS(float64(w.worldGridSubdivision))
-	w.invWorldGridStep = Vec2{X: 1 / w.worldGridStep.X, Y: 1 / w.worldGridStep.Y}
+	w.invWorldGridStep = v.Vec{X: 1 / w.worldGridStep.X, Y: 1 / w.worldGridStep.Y}
 }
 
 // Returns world limits
@@ -73,16 +75,16 @@ func (w *World) IsRelaxing() bool {
 	return w.relaxing
 }
 
-func (w *World) setWorldGridSubdivision(v int) {
-	w.worldGridSubdivision = v
-	w.subdivVec = Vec2{float64(v), float64(v)}
+func (w *World) setWorldGridSubdivision(a int) {
+	w.worldGridSubdivision = a
+	w.subdivVec = v.Vec{float64(a), float64(a)}
 }
 
 // NewWorld inits an returns empty world
 func NewWorld() *World {
 	w := &World{}
 	w.setWorldGridSubdivision(64)
-	w.subdivVec = Vec2{X: float64(w.worldGridSubdivision), Y: float64(w.worldGridSubdivision)}
+	w.subdivVec = v.Vec{X: float64(w.worldGridSubdivision), Y: float64(w.worldGridSubdivision)}
 	w.Reset()
 	return w
 }
@@ -107,7 +109,7 @@ func (w *World) Reset() {
 	w.materialCount = 1
 	w.MaterialPairs = [][]MaterialPair{{w.DefaultMatPair}}
 	w.PenetrationThreshold = 0.3
-	w.SetWorldLimits(Vec2{X: -20.0, Y: -20.0}, Vec2{X: 20.0, Y: 20.0})
+	w.SetWorldLimits(v.Vec{X: -20.0, Y: -20.0}, v.Vec{X: 20.0, Y: 20.0})
 }
 
 // ---------- MATERIALS ---------- //
@@ -207,7 +209,7 @@ func (w *World) AreBodiesJoined(body1, body2 *Body) bool {
 }
 
 // Finds the closest PointMass in the world to a given point
-func (w *World) ClosestPointMass(pt Vec2, ignoreFunction func(*Body, int) bool) (*Body, int, bool) {
+func (w *World) ClosestPointMass(pt v.Vec, ignoreFunction func(*Body, int) bool) (*Body, int, bool) {
 	var retBody *Body
 	var retIdx int
 	found := false
@@ -230,7 +232,7 @@ func (w *World) ClosestPointMass(pt Vec2, ignoreFunction func(*Body, int) bool) 
 // ClosestPoint returns the closest body and the nearest point on its surface
 // to the given position. The hit point always lies on the body's boundary.
 // Bodies can be excluded using ignoreFunction.
-func (w *World) ClosestPoint(pt Vec2, ignoreFunction func(*Body) bool) (closestBody *Body, closestHitPoint Vec2, found bool) {
+func (w *World) ClosestPoint(pt v.Vec, ignoreFunction func(*Body) bool) (closestBody *Body, closestHitPoint v.Vec, found bool) {
 	for _, body := range w.Bodies {
 		if ignoreFunction != nil && ignoreFunction(body) {
 			continue
@@ -247,7 +249,7 @@ func (w *World) ClosestPoint(pt Vec2, ignoreFunction func(*Body) bool) (closestB
 
 // Given a global point, returns a body (if any) that contains this point.
 // Useful for picking objects with a cursor, etc.
-func (w *World) BodyUnder(pt Vec2, bitmask Bitmask) *Body {
+func (w *World) BodyUnder(pt v.Vec, bitmask Bitmask) *Body {
 	for _, body := range w.Bodies {
 		if (bitmask == 0 || (body.Bitmask&bitmask) != 0) && body.Contains(pt) {
 			return body
@@ -258,7 +260,7 @@ func (w *World) BodyUnder(pt Vec2, bitmask Bitmask) *Body {
 
 // Given a global point, returns all bodies that contain this point.
 // Useful for picking objects with a cursor, etc.
-func (w *World) BodiesUnder(pt Vec2, bitmask Bitmask) []*Body {
+func (w *World) BodiesUnder(pt v.Vec, bitmask Bitmask) []*Body {
 	var result []*Body
 	for _, b := range w.Bodies {
 		if (bitmask == 0 || (b.Bitmask&bitmask) != 0) && b.Contains(pt) {
@@ -269,7 +271,7 @@ func (w *World) BodiesUnder(pt Vec2, bitmask Bitmask) []*Body {
 }
 
 // Returns a vector of bodies intersecting with the given line.
-func (w *World) BodiesIntersectingLine(start, end Vec2, bitmask Bitmask) []*Body {
+func (w *World) BodiesIntersectingLine(start, end v.Vec, bitmask Bitmask) []*Body {
 	var result []*Body
 	for _, body := range w.Bodies {
 		w.updateBodyBitmask(body)
@@ -308,7 +310,7 @@ func (w *World) BodiesIntersectingLine(start, end Vec2, bitmask Bitmask) []*Body
 //     points, the unmodified 'outResults' slice is returned.
 func (w *World) BodiesIntersectingShape(
 	shape Shape,
-	worldPos Vec2,
+	worldPos v.Vec,
 	ignoreTest func(*Body) bool,
 	outResults []*Body,
 	tempBuffer Shape,
@@ -369,8 +371,8 @@ func (w *World) BodiesIntersectingShape(
 //   - An optional tuple containing the farthest point reached by the ray,
 //     and a Body value specifying the body that was closest to the ray,
 //     if it hit any body, or nil if it hit nothing.
-func (w *World) RayCast(start, end Vec2, bitmask Bitmask, ignoreTest func(*Body) bool) (retPt Vec2, body *Body) {
-	aabb := NewAABBFromPoints([]Vec2{start, end})
+func (w *World) RayCast(start, end v.Vec, bitmask Bitmask, ignoreTest func(*Body) bool) (retPt v.Vec, body *Body) {
+	aabb := NewAABBFromPoints([]v.Vec{start, end})
 	aabbBitmask := w.bitmask(aabb)
 	closestDistSq := math.MaxFloat64
 	for _, b := range w.Bodies {
@@ -401,7 +403,7 @@ func (w *World) RayCast(start, end Vec2, bitmask Bitmask, ignoreTest func(*Body)
 		closestDistSq = distSq
 		retPt = ret
 		body = b
-		aabb = NewAABBFromPoints([]Vec2{start, ret})
+		aabb = NewAABBFromPoints([]v.Vec{start, ret})
 		aabbBitmask = w.bitmask(aabb)
 	}
 	return
@@ -696,8 +698,8 @@ func (w *World) bitmask(aabb AABB) bitmaskPair {
 		math.IsNaN(aabb.Max.X) || math.IsNaN(aabb.Max.Y) {
 		return bitmaskPair{0, 0}
 	}
-	minVec := aabb.Min.Sub(w.worldLimits.Min).Mul(w.invWorldGridStep).Min(w.subdivVec).Max(Vec2{})
-	maxVec := aabb.Max.Sub(w.worldLimits.Min).Mul(w.invWorldGridStep).Min(w.subdivVec).Max(Vec2{})
+	minVec := aabb.Min.Sub(w.worldLimits.Min).Mul(w.invWorldGridStep).Min(w.subdivVec).Max(v.Vec{})
+	maxVec := aabb.Max.Sub(w.worldLimits.Min).Mul(w.invWorldGridStep).Min(w.subdivVec).Max(v.Vec{})
 
 	if math.IsNaN(minVec.X) || math.IsNaN(minVec.Y) ||
 		math.IsNaN(maxVec.X) || math.IsNaN(maxVec.Y) {
@@ -737,7 +739,7 @@ func (w *World) RelaxWorld(timestep float64, iterations int) {
 	w.relaxing = false
 	for _, body := range w.Bodies {
 		for i := 0; i < len(body.PointMasses); i++ {
-			body.SetPointVelocityAt(Vec2{}, i)
+			body.SetPointVelocityAt(v.Vec{}, i)
 		}
 	}
 }
@@ -784,7 +786,7 @@ func (w *World) RelaxBodies(bodies []*Body, timestep float64, iterations int) {
 	w.relaxing = false
 	for _, body := range bodies {
 		for i := 0; i < len(body.PointMasses); i++ {
-			body.SetPointVelocityAt(Vec2{}, i)
+			body.SetPointVelocityAt(v.Vec{}, i)
 		}
 	}
 }

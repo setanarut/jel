@@ -1,5 +1,7 @@
 package jel
 
+import "github.com/setanarut/v"
+
 // SpringType identifies what a spring connection represents within the
 // simulation, distinguishing default perimeter springs, extra internal
 // springs, and springs used by joints between separate bodies.
@@ -45,7 +47,7 @@ type Spring struct {
 // nearest bound ([RestDistance.MaxDist] when stretched, [RestDistance.MinDist] when compressed),
 // clamped so that a ratio of ±30% or more maps to ±1. A positive value
 // indicates stretching, a negative value indicates compression.
-func CalcSpringTension(a, b Vec2, rd RestDistance) float64 {
+func CalcSpringTension(a, b v.Vec, rd RestDistance) float64 {
 	dist := a.Dist(b)
 
 	var ratio float64
@@ -219,15 +221,15 @@ func CalcPlasticity(dist float64, rd RestDistance, sp *SpringPlasticity) RestDis
 // rest length (distance), stiffness, and damping factor.
 // The returned force is directed along the axis between the two points and
 // should be applied to posA (and its negation to posB). Returns the zero
-// Vec2 if the two points are closer than epsilonSpring, to avoid dividing
+// v.Vec if the two points are closer than epsilonSpring, to avoid dividing
 // by a near-zero distance.
 func CalcSpringForce(
-	posA, velA, posB, velB Vec2,
+	posA, velA, posB, velB v.Vec,
 	distance, stiffness, damping float64,
-) Vec2 {
+) v.Vec {
 	var dist = posA.Dist(posB)
 	if dist <= epsilonSpring {
-		return Vec2{}
+		return v.Vec{}
 	}
 	BtoA := posA.Sub(posB).DivS(dist)
 	dist = distance - dist

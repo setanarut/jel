@@ -4,6 +4,8 @@ import (
 	"math"
 	"slices"
 	"sort"
+
+	"github.com/setanarut/v"
 )
 
 // Represents a soft body on the [World]
@@ -25,7 +27,7 @@ type Body struct {
 	// Body components for this body object
 	Components []Component
 	// The scale for this body's shape
-	Scale Vec2
+	Scale v.Vec
 	// The velocity damping to apply to the body. Values closer to 0
 	// decelerate faster, values closer to 1 decelerate slower.
 	//
@@ -74,9 +76,9 @@ type Body struct {
 	// The Y-axis bitmask for the body - used for collision filtering.
 	BitmaskY Bitmask
 	// The derived center position of this body - in world coordinates
-	DerivedPos Vec2
+	DerivedPos v.Vec
 	// The derived velocity of this body - in world coordinates. The derivation
-	DerivedVel Vec2
+	DerivedVel v.Vec
 	// The derived rotation of the body, in radians
 	DerivedAngle float64
 	// Omega (ω) is the relative angular speed of the body, in radians/s
@@ -99,7 +101,7 @@ type Body struct {
 //	 - mass is the individual mass of each point within [Body.PointMasses].
 //	   See [Body.SetMassesFromSlice],  [Body.SetMassAll], [Body.SetMassByIndex]
 //	 - world: The world this body will be added to (optional). See [World.AddBody] and [World.AddBodies].
-func NewBody(shape Shape, pos Vec2, angle, mass float64, world ...*World) *Body {
+func NewBody(shape Shape, pos v.Vec, angle, mass float64, world ...*World) *Body {
 	b := &Body{
 		VelDamping:    0.999,
 		FreeRotate:    true,
@@ -108,7 +110,7 @@ func NewBody(shape Shape, pos Vec2, angle, mass float64, world ...*World) *Body 
 		DerivedPos:    pos,
 		DerivedAngle:  angle,
 		lastAngle:     angle,
-		Scale:         Vec2One,
+		Scale:         v.One,
 	}
 	b.SetShape(shape)
 	b.SetMassAll(mass)
@@ -122,7 +124,7 @@ func NewBody(shape Shape, pos Vec2, angle, mass float64, world ...*World) *Body 
 }
 
 // NewStaticBody returns a new static [Body].
-func NewStaticBody(shape Shape, pos Vec2, angle float64, world ...*World) *Body {
+func NewStaticBody(shape Shape, pos v.Vec, angle float64, world ...*World) *Body {
 	b := NewBody(shape, pos, angle, Infinity, nil)
 	if len(world) > 0 && world[0] != nil {
 		world[0].AddBody(b)
@@ -303,7 +305,7 @@ func (b *Body) edgeBounds(edgeIndex int) AABB {
 // closestCollisionEdges finds the closest edges whose normals face away from
 // and toward pointNormal. It uses the edge tree to avoid scanning edges whose
 // bounds cannot beat either current closest distance.
-func (b *Body) closestCollisionEdges(pt, pointNormal Vec2) (away, same CollisionInfo, foundAway bool) {
+func (b *Body) closestCollisionEdges(pt, pointNormal v.Vec) (away, same CollisionInfo, foundAway bool) {
 	closestAway, closestSame := Infinity, Infinity
 	away.BodyBpmA, away.BodyBpmB = -1, -1
 	same.BodyBpmA, same.BodyBpmB = -1, -1
@@ -347,7 +349,7 @@ func (b *Body) closestCollisionEdges(pt, pointNormal Vec2) (away, same Collision
 	return away, same, foundAway
 }
 
-func pointAABBDistanceSq(point Vec2, box AABB) float64 {
+func pointAABBDistanceSq(point v.Vec, box AABB) float64 {
 	dx := max(box.Min.X-point.X, 0, point.X-box.Max.X)
 	dy := max(box.Min.Y-point.Y, 0, point.Y-box.Max.Y)
 	return dx*dx + dy*dy
@@ -363,7 +365,7 @@ func (b *Body) updateNormals() {
 		edge1N := prev.Difference
 		edge2N := curEdge.Difference
 		sum := edge1N.Add(edge2N)
-		if sum == (Vec2{}) {
+		if sum == (v.Vec{}) {
 			b.PointMasses[i].Normal = edge1N
 		} else {
 			b.PointMasses[i].Normal = sum.Perp().Unit()
@@ -434,7 +436,7 @@ func (b *Body) SetMassesFromSlice(masses []float64) {
 //
 // Setting the position and angle resets the current shape to the original
 // base shape of the object.
-func (b *Body) SetScaleAnglePosition(scale Vec2, angle float64, pos Vec2) {
+func (b *Body) SetScaleAnglePosition(scale v.Vec, angle float64, pos v.Vec) {
 	matrix := NewMatrix3x3(scale, angle, pos)
 	b.BaseShape.TransformByMatrixToTarget(b.GlobalShape, matrix)
 	for i := range b.PointMasses {
@@ -581,14 +583,14 @@ func (b *Body) AddAngularVelocity(vel float64) {
 }
 
 // Returns whether a global point is inside this body.
-func (b *Body) Contains(pt Vec2) bool {
+func (b *Body) Contains(pt v.Vec) bool {
 	if !b.AABB.Contains(pt) {
 		return false
 	}
-	var endPt Vec2
+	var endPt v.Vec
 	inside := false
 	if pt.X < b.AABB.midX() {
-		endPt = Vec2{X: b.AABB.Min.X - 0.1, Y: pt.Y}
+		endPt = v.Vec{X: b.AABB.Min.X - 0.1, Y: pt.Y}
 		for _, e := range b.Edges {
 			edgeSt := e.Start
 			edgeEnd := e.End
@@ -604,7 +606,7 @@ func (b *Body) Contains(pt Vec2) bool {
 			}
 		}
 	} else {
-		endPt = Vec2{X: b.AABB.Max.X + 0.1, Y: pt.Y}
+		endPt = v.Vec{X: b.AABB.Max.X + 0.1, Y: pt.Y}
 		for _, e := range b.Edges {
 			edgeSt := e.Start
 			edgeEnd := e.End
@@ -624,7 +626,7 @@ func (b *Body) Contains(pt Vec2) bool {
 }
 
 // Returns whether the given line consisting of two points intersects this body.
-func (b *Body) IntersectsLine(start, end Vec2) bool {
+func (b *Body) IntersectsLine(start, end v.Vec) bool {
 	if !b.AABB.Intersects(NewAABB(start.Min(end), start.Max(end))) {
 		return false
 	}
@@ -640,11 +642,11 @@ func (b *Body) IntersectsLine(start, end Vec2) bool {
 // at which the ray intersects this body the closest to `start`.
 //
 // If the ray does not crosses this body, `nil` is returned, instead.
-func (b *Body) Raycast(start, end Vec2) (closestHit Vec2, ok bool) {
+func (b *Body) Raycast(start, end v.Vec) (closestHit v.Vec, ok bool) {
 	if !b.AABB.Intersects(NewAABBOf(start, end)) {
-		return Vec2{}, false
+		return v.Vec{}, false
 	}
-	var p1, p2 Vec2
+	var p1, p2 v.Vec
 	var hasHit bool
 	for _, e := range b.Edges {
 		p1 = e.Start
@@ -659,7 +661,7 @@ func (b *Body) Raycast(start, end Vec2) (closestHit Vec2, ok bool) {
 		}
 	}
 	if !hasHit {
-		return Vec2{}, false
+		return v.Vec{}, false
 	}
 	return closestHit, true
 }
@@ -678,7 +680,7 @@ func (b *Body) Raycast(start, end Vec2) (closestHit Vec2, ok bool) {
 //   - normal: A unit vector representing the normal of the edge
 //   - edgeD: The ratio along the edge where the point was found, in range [0, 1]
 //   - distance: The squared distance to the closest edge point
-func (b *Body) ClosestPointOnEdgeSq(pt Vec2, edgeNum int) (hitPoint, normal Vec2, edgeD, distance float64) {
+func (b *Body) ClosestPointOnEdgeSq(pt v.Vec, edgeNum int) (hitPoint, normal v.Vec, edgeD, distance float64) {
 	edge := b.Edges[edgeNum]
 	ptA := edge.Start
 	ptB := edge.End
@@ -716,7 +718,7 @@ func (b *Body) ClosestPointOnEdgeSq(pt Vec2, edgeNum int) (hitPoint, normal Vec2
 //   - normal: A unit vector containing information about the normal of the edge found
 //   - edgeD: The ratio of the edge where the point was grabbed, [0-1] inclusive
 //   - distance: The distance to the closest edge found
-func (b *Body) ClosestPointOnEdge(pt Vec2, edgeNum int) (hitPoint, normal Vec2, edgeD, distance float64) {
+func (b *Body) ClosestPointOnEdge(pt v.Vec, edgeNum int) (hitPoint, normal v.Vec, edgeD, distance float64) {
 	hitPoint, normal, edgeD, sqDist := b.ClosestPointOnEdgeSq(pt, edgeNum)
 	return hitPoint, normal, edgeD, math.Sqrt(sqDist)
 }
@@ -737,12 +739,12 @@ func (b *Body) ClosestPointOnEdge(pt Vec2, edgeNum int) (hitPoint, normal Vec2, 
 //   - pointB: The index of the second endpoint of the edge
 //   - edgeD: The ratio along the edge [0,1] where the closest point lies
 //   - distance: The Euclidean distance from pt to the closest point
-func (b *Body) ClosestPoint(pt Vec2) (hitPoint, normal Vec2, pointA, pointB int, edgeD, distance float64) {
+func (b *Body) ClosestPoint(pt v.Vec) (hitPoint, normal v.Vec, pointA, pointB int, edgeD, distance float64) {
 	pointA = -1
 	pointB = -1
 	var edgeDVal float64 = 0
-	normal = Vec2{}
-	hitPoint = Vec2{}
+	normal = v.Vec{}
+	hitPoint = v.Vec{}
 	closestD := Infinity
 	c := len(b.PointMasses)
 	for i := range c {
@@ -778,14 +780,14 @@ func (b *Body) ClosestPoint(pt Vec2) (hitPoint, normal Vec2, pointA, pointB int,
 //   - ok: false if the body has no edges or point masses, or if no edge
 //     was found within tolerance — in that case the other return values
 //     are zero values and should not be used
-func (b *Body) ClosestEdge(point Vec2, tolerance float64) (edgePosition Vec2, edgeRatio float64, edgePoint1, edgePoint2 int, ok bool) {
+func (b *Body) ClosestEdge(point v.Vec, tolerance float64) (edgePosition v.Vec, edgeRatio float64, edgePoint1, edgePoint2 int, ok bool) {
 	if len(b.Edges) == 0 || len(b.PointMasses) == 0 {
-		return Vec2{}, 0, 0, 0, false
+		return v.Vec{}, 0, 0, 0, false
 	}
 	found := false
 	closestP1 := 0
 	closestP2 := 0
-	edgePosition = Vec2{}
+	edgePosition = v.Vec{}
 	edgeRatio = 0
 	closestD := Infinity
 	for _, edge := range b.Edges {
@@ -807,11 +809,11 @@ func (b *Body) ClosestEdge(point Vec2, tolerance float64) (edgePosition Vec2, ed
 	if found {
 		return edgePosition, edgeRatio, closestP1, closestP2, true
 	}
-	return Vec2{}, 0, 0, 0, false
+	return v.Vec{}, 0, 0, 0, false
 }
 
 // Find the closest PointMass index in this body, given a global point
-func (b *Body) ClosestPointMass(pos Vec2) (point int, distance float64) {
+func (b *Body) ClosestPointMass(pos v.Vec) (point int, distance float64) {
 	closestSQD := math.MaxFloat64
 	closest := -1
 	for i, point := range b.PointMasses {
@@ -831,7 +833,7 @@ func (b *Body) ClosestPointMass(pos Vec2) (point int, distance float64) {
 // Parameters:
 //   - force: The force vector to apply
 //   - pt: The world position where the force is applied. Use `derivedPos` for center.
-func (b *Body) ApplyForceAtGlobalPoint(force Vec2, pt Vec2) {
+func (b *Body) ApplyForceAtGlobalPoint(force v.Vec, pt v.Vec) {
 	if b.IsStatic {
 		return
 	}
@@ -846,7 +848,7 @@ func (b *Body) ApplyForceAtGlobalPoint(force Vec2, pt Vec2) {
 // ApplyGlobalForce applies the same force to every point mass directly.
 // No torque is calculated, so the body translates without rotating.
 // Ignored if the body is static.
-func (b *Body) ApplyGlobalForce(force Vec2) {
+func (b *Body) ApplyGlobalForce(force v.Vec) {
 	if b.IsStatic {
 		return
 	}
@@ -858,7 +860,7 @@ func (b *Body) ApplyGlobalForce(force Vec2) {
 
 // Adds a velocity vector to all the point masses in this body.
 // Does nothing, if body is static.
-func (b *Body) AddVelocity(velocity Vec2) {
+func (b *Body) AddVelocity(velocity v.Vec) {
 	if b.IsStatic {
 		return
 	}
@@ -878,7 +880,7 @@ func (b *Body) AddVelocity(velocity Vec2) {
 // Parameters:
 //   - velocity: The velocity to set. Set to Zero to reset average velocity of
 //     the body to 0.
-func (b *Body) SetAverageVelocity(velocity Vec2) {
+func (b *Body) SetAverageVelocity(velocity v.Vec) {
 	if b.IsStatic {
 		return
 	}
@@ -892,36 +894,36 @@ func (b *Body) Reset() {
 		return
 	}
 	for i, pm := range b.PointMasses {
-		pm.Velocity = Vec2{}
+		pm.Velocity = v.Vec{}
 		pm.Position = b.GlobalShape[i]
 		pm.Mass = 1.0
-		pm.Force = Vec2{}
+		pm.Force = v.Vec{}
 	}
 }
 
 // Applies a relative velocity change to a single point mass at the given index..
-func (b *Body) ApplyForceToPointAt(force Vec2, pointMassIndex int) {
+func (b *Body) ApplyForceToPointAt(force v.Vec, pointMassIndex int) {
 	b.PointMasses[pointMassIndex].ApplyForce(force)
 }
 
 // Adds velocity to the current velocity of a single point mass.
-func (b *Body) AddVelocityToPointAt(velocity Vec2, pointMassIndex int) {
+func (b *Body) AddVelocityToPointAt(velocity v.Vec, pointMassIndex int) {
 	b.PointMasses[pointMassIndex].Velocity = b.PointMasses[pointMassIndex].Velocity.Add(velocity)
 }
 
 // Sets the absolute velocity of a single point mass.
-func (b *Body) SetPointVelocityAt(velocity Vec2, pointMassIndex int) {
+func (b *Body) SetPointVelocityAt(velocity v.Vec, pointMassIndex int) {
 	b.PointMasses[pointMassIndex].Velocity = velocity
 }
 
 // Sets the absolute position of a single point mass.
-func (b *Body) SetPointPositionAt(position Vec2, pointMassIndex int) {
+func (b *Body) SetPointPositionAt(position v.Vec, pointMassIndex int) {
 	b.PointMasses[pointMassIndex].Position = position
 	b.bitmasksStale = true
 }
 
 // Translates [PointMass.Position] at index i
-func (b *Body) TranslatePointAt(offset Vec2, i int) {
+func (b *Body) TranslatePointAt(offset v.Vec, i int) {
 	b.PointMasses[i].Position = b.PointMasses[i].Position.Add(offset)
 	b.bitmasksStale = true
 }
@@ -953,13 +955,13 @@ type BodyEdge struct {
 	// body's [Body.PointMasses] slice.
 	EndPointIndex int
 	// Start is the start position of the edge.
-	Start Vec2
+	Start v.Vec
 	// End is the end position of the edge.
-	End Vec2
+	End v.Vec
 	// Normal is the normal for the edge.
-	Normal Vec2
+	Normal v.Vec
 	// Difference is the difference between the start and end points, normalized.
-	Difference Vec2
+	Difference v.Vec
 	// Length is the edge's length.
 	Length float64
 	// LengthSquared is the edge's length, squared.
@@ -972,7 +974,7 @@ type BodyEdge struct {
 // The [BodyEdge.Difference], [BodyEdge.Normal], [BodyEdge.Length] and
 // [BodyEdge.LengthSquared] fields are automatically initialized from these
 // values.
-func NewBodyEdge(edgeIndex, startPointIndex, endPointIndex int, start, end Vec2) *BodyEdge {
+func NewBodyEdge(edgeIndex, startPointIndex, endPointIndex int, start, end v.Vec) *BodyEdge {
 	e := &BodyEdge{
 		EdgeIndex:       edgeIndex,
 		StartPointIndex: startPointIndex,

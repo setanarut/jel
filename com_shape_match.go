@@ -1,6 +1,10 @@
 package jel
 
-import "math"
+import (
+	"math"
+
+	"github.com/setanarut/v"
+)
 
 // ShapeMatchComponent pulls a body's point masses back toward its original
 // base shape using spring forces, so the body tends to retain its shape
@@ -72,13 +76,13 @@ func (s *ShapeMatchComponent) AccumulateInternalForces(body *Body, relaxing bool
 // applySpringForce computes and applies the zero-rest-length spring +
 // damping force pulling point mass i toward its derived global shape
 // position (global).
-func (s *ShapeMatchComponent) applySpringForce(body *Body, i int, global Vec2) {
+func (s *ShapeMatchComponent) applySpringForce(body *Body, i int, global v.Vec) {
 	p := body.PointMasses[i]
 
-	velB := Vec2{}
+	velB := v.Vec{}
 	if !body.IsKinematic {
 		radiusVec := global.Sub(body.DerivedPos)
-		tangentVel := Vec2{
+		tangentVel := v.Vec{
 			X: -body.DerivedOmega * radiusVec.Y,
 			Y: body.DerivedOmega * radiusVec.X,
 		}
@@ -101,7 +105,7 @@ func (s *ShapeMatchComponent) applySpringForce(body *Body, i int, global Vec2) {
 // current position (relative to the body's mean position) against its
 // corresponding base shape vertex, and averaging the resulting angles
 // (handling wraparound across the +/-Pi boundary).
-func (s *ShapeMatchComponent) deriveSubsetPositionAngle(body *Body, indices []int) (Vec2, float64) {
+func (s *ShapeMatchComponent) deriveSubsetPositionAngle(body *Body, indices []int) (v.Vec, float64) {
 	meanPos := body.DerivedPos
 	if body.IsPinned {
 		meanPos = AveragePointMassPosition(body.PointMasses)

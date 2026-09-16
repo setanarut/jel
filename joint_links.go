@@ -1,6 +1,10 @@
 package jel
 
-import "math"
+import (
+	"math"
+
+	"github.com/setanarut/v"
+)
 
 // Interface to be implemented by objects that specify the way a joint links with a body
 type JointLink interface {
@@ -8,22 +12,22 @@ type JointLink interface {
 	Body() *Body
 	// Gets the position, in world coordinates, at which this joint links with
 	// the underlying body
-	Position() Vec2
+	Position() v.Vec
 	// Gets the velocity of the object this joint links to
-	Velocity() Vec2
+	Velocity() v.Vec
 	// Gets the total mass of the subject of this joint link
 	Mass() float64
 	// Gets a value specifying whether the object referenced by this
 	// JointLinkType is static
 	IsStatic() bool
 	// Applies a given force to the subject of this joint link.
-	ApplyForce(force Vec2)
+	ApplyForce(force v.Vec)
 	// Applies a direct positional translation of this joint link by a given offset.
-	Translate(offset Vec2)
+	Translate(offset v.Vec)
 	// AddVelocity adds a velocity delta to the subject(s) of this joint
 	// link, distributing it the same way ApplyForce does (e.g. across
 	// multiple point masses for Edge/Shape links).
-	AddVelocity(velocity Vec2)
+	AddVelocity(velocity v.Vec)
 }
 
 type baseJointLink struct {
@@ -50,12 +54,12 @@ func NewBodyJointLink(body *Body) *BodyJointLink {
 
 // Position returns the position, in world coordinates,
 // at which this joint links with the underlying [Body].
-func (b *BodyJointLink) Position() Vec2 {
+func (b *BodyJointLink) Position() v.Vec {
 	return b.body.DerivedPos
 }
 
 // Velocity returns the velocity of the object this joint links to
-func (b *BodyJointLink) Velocity() Vec2 {
+func (b *BodyJointLink) Velocity() v.Vec {
 	return b.body.DerivedVel
 }
 
@@ -74,19 +78,19 @@ func (b *BodyJointLink) IsStatic() bool {
 }
 
 // ApplyForce applies a given force to the subject of this joint link
-func (b *BodyJointLink) ApplyForce(force Vec2) {
+func (b *BodyJointLink) ApplyForce(force v.Vec) {
 	b.body.ApplyGlobalForce(force)
 }
 
 // Translate applies a direct positional translation of this joint link
-func (b *BodyJointLink) Translate(offset Vec2) {
+func (b *BodyJointLink) Translate(offset v.Vec) {
 	for i := range b.body.PointMasses {
 		b.body.TranslatePointAt(offset, i)
 	}
 }
 
 // AddVelocity adds a velocity delta to every point mass of the body.
-func (b *BodyJointLink) AddVelocity(velocity Vec2) {
+func (b *BodyJointLink) AddVelocity(velocity v.Vec) {
 	b.body.AddVelocity(velocity)
 }
 
@@ -112,12 +116,12 @@ func NewPointJointLink(body *Body, pointMassIndex int) *PointJointLink {
 
 // Gets the position, in world coordinates, at which this joint links with
 // the underlying body
-func (p *PointJointLink) Position() Vec2 {
+func (p *PointJointLink) Position() v.Vec {
 	return p.body.PointMasses[p.pointMass].Position
 }
 
 // Velocity returns the velocity of the object this joint links to
-func (p *PointJointLink) Velocity() Vec2 {
+func (p *PointJointLink) Velocity() v.Vec {
 	return p.body.PointMasses[p.pointMass].Velocity
 }
 
@@ -133,17 +137,17 @@ func (p *PointJointLink) IsStatic() bool {
 }
 
 // Applies a given force to the subject of this joint link
-func (p *PointJointLink) ApplyForce(force Vec2) {
+func (p *PointJointLink) ApplyForce(force v.Vec) {
 	p.body.ApplyForceToPointAt(force, p.pointMass)
 }
 
 // Applies a direct positional translation of this joint link by a given offset
-func (p *PointJointLink) Translate(offset Vec2) {
+func (p *PointJointLink) Translate(offset v.Vec) {
 	p.body.TranslatePointAt(offset, p.pointMass)
 }
 
 // AddVelocity adds a velocity delta to the linked point mass.
-func (p *PointJointLink) AddVelocity(velocity Vec2) {
+func (p *PointJointLink) AddVelocity(velocity v.Vec) {
 	p.body.AddVelocityToPointAt(velocity, p.pointMass)
 }
 
@@ -180,14 +184,14 @@ func NewEdgeJointLink(body *Body, edgeIndex int, edgeRatio ...float64) *EdgeJoin
 
 // Gets the position, in world coordinates, at which this joint links with
 // the underlying body
-func (e *EdgeJointLink) Position() Vec2 {
+func (e *EdgeJointLink) Position() v.Vec {
 	pos1 := e.body.PointMasses[e.pointMass1].Position
 	pos2 := e.body.PointMasses[e.pointMass2].Position
 	return pos1.Lerp(pos2, e.EdgeRatio)
 }
 
 // Velocity returns the velocity of the object this joint links to
-func (e *EdgeJointLink) Velocity() Vec2 {
+func (e *EdgeJointLink) Velocity() v.Vec {
 	vel1 := e.body.PointMasses[e.pointMass1].Velocity
 	vel2 := e.body.PointMasses[e.pointMass2].Velocity
 	return vel1.Lerp(vel2, e.EdgeRatio)
@@ -209,20 +213,20 @@ func (e *EdgeJointLink) IsStatic() bool {
 }
 
 // Applies a given force to the subject of this joint link
-func (e *EdgeJointLink) ApplyForce(force Vec2) {
+func (e *EdgeJointLink) ApplyForce(force v.Vec) {
 	e.body.ApplyForceToPointAt(force.Scale(1-e.EdgeRatio), e.pointMass1)
 	e.body.ApplyForceToPointAt(force.Scale(e.EdgeRatio), e.pointMass2)
 }
 
 // Applies a direct positional translation of this joint link by a given offset
-func (e *EdgeJointLink) Translate(offset Vec2) {
+func (e *EdgeJointLink) Translate(offset v.Vec) {
 	e.body.TranslatePointAt(offset, e.pointMass1)
 	e.body.TranslatePointAt(offset, e.pointMass2)
 }
 
 // AddVelocity adds a velocity delta to both endpoints of the edge,
 // weighted by EdgeRatio — mirrors ApplyForce's distribution.
-func (e *EdgeJointLink) AddVelocity(velocity Vec2) {
+func (e *EdgeJointLink) AddVelocity(velocity v.Vec) {
 	e.body.AddVelocityToPointAt(velocity.Scale(1-e.EdgeRatio), e.pointMass1)
 	e.body.AddVelocityToPointAt(velocity.Scale(e.EdgeRatio), e.pointMass2)
 }
@@ -235,7 +239,7 @@ type ShapeJointLink struct {
 	Indexes []int
 	/// The Offset to apply to the position of this shape joint, in body
 	/// coordinates
-	Offset Vec2
+	Offset v.Vec
 
 	baseJointLink
 }
@@ -253,7 +257,7 @@ func NewShapeJointLink(body *Body, pointMassIndexes []int) *ShapeJointLink {
 // plus Offset rotated into world space by the shape's current deformation
 // angle (so the offset point follows the body's rotation, not just its
 // centroid).
-func (s *ShapeJointLink) Position() Vec2 {
+func (s *ShapeJointLink) Position() v.Vec {
 	return s.centroid().Add(s.offsetPosition())
 }
 
@@ -263,7 +267,7 @@ func (s *ShapeJointLink) Position() Vec2 {
 // body's current angular velocity. This keeps Velocity() consistent with
 // the offset point returned by Position(): both describe the same
 // physical point on the rotating body, not just the centroid.
-func (s *ShapeJointLink) Velocity() (vel Vec2) {
+func (s *ShapeJointLink) Velocity() (vel v.Vec) {
 	for _, i := range s.Indexes {
 		vel = vel.Add(s.body.PointMasses[i].Velocity)
 	}
@@ -299,7 +303,7 @@ func (s *ShapeJointLink) IsStatic() bool {
 }
 
 // Applies a given force to the subject of this joint link
-func (s *ShapeJointLink) ApplyForce(force Vec2) {
+func (s *ShapeJointLink) ApplyForce(force v.Vec) {
 	torqueF := s.offsetPosition().Dot(force.Perp())
 	centroid := s.centroid() // eski Position() davranışı, offsetsiz
 	for _, i := range s.Indexes {
@@ -312,7 +316,7 @@ func (s *ShapeJointLink) ApplyForce(force Vec2) {
 // centroid returns the unweighted average position of the indexed point
 // masses, without Offset applied — used internally as the rotation
 // reference point for torque calculations.
-func (s *ShapeJointLink) centroid() (pos Vec2) {
+func (s *ShapeJointLink) centroid() (pos v.Vec) {
 	for _, i := range s.Indexes {
 		pos = pos.Add(s.body.PointMasses[i].Position)
 	}
@@ -320,7 +324,7 @@ func (s *ShapeJointLink) centroid() (pos Vec2) {
 }
 
 // Applies a direct positional translation of this joint link by a given offset
-func (s *ShapeJointLink) Translate(offset Vec2) {
+func (s *ShapeJointLink) Translate(offset v.Vec) {
 	for _, i := range s.Indexes {
 		s.body.TranslatePointAt(offset, i)
 	}
@@ -331,7 +335,7 @@ func (s *ShapeJointLink) Translate(offset Vec2) {
 // force — including the rotational component so a velocity change at an
 // offset point produces angular motion around the shape's centroid, not
 // just a uniform translation.
-func (s *ShapeJointLink) AddVelocity(velocity Vec2) {
+func (s *ShapeJointLink) AddVelocity(velocity v.Vec) {
 	torqueV := s.offsetPosition().Dot(velocity.Perp())
 	centroid := s.centroid()
 	n := float64(len(s.Indexes))
@@ -397,7 +401,7 @@ func (s *ShapeJointLink) SubDerivedAngle() float64 {
 	return angle
 }
 
-func (s *ShapeJointLink) offsetPosition() (pos Vec2) {
+func (s *ShapeJointLink) offsetPosition() (pos v.Vec) {
 	if s.Offset.IsZero() {
 		return s.Offset
 	}

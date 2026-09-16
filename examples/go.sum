@@ -16,6 +16,8 @@ github.com/hajimehoshi/ebiten/v2 v2.10.2 h1:uNMOpfb/pW7GQRMsSn/pxwrk9rNcgSaIdjKw
 github.com/hajimehoshi/ebiten/v2 v2.10.2/go.mod h1:47QNgyS/y2ZRkjVUvlGLx8a+F7MSjcn8/GsjcCZ9Rc8=
 github.com/pierrec/lz4/v4 v4.1.30 h1:cchX8N2DVP668WkElI9QMwVyoNabLkq1LofDHFeIrdg=
 github.com/pierrec/lz4/v4 v4.1.30/go.mod h1:EoQMVJgeeEOMsCqCzqFm2O0cJvljX2nGZjcRIPL34O4=
+github.com/setanarut/v v1.2.9 h1:z6HW1m32VHKed98PeUzXmzJHXcxxgfJwe7GGOISRugg=
+github.com/setanarut/v v1.2.9/go.mod h1:/EX95JGm9AilgfEaFCYlOz95IqJGVfCt/7r2i1rNRbw=
 github.com/srwiley/rasterx v0.0.0-20220730225603-2ab79fcdd4ef h1:Ch6Q+AZUxDBCVqdkI8FSpFyZDtCVBc2VmejdNrm5rRQ=
 github.com/srwiley/rasterx v0.0.0-20220730225603-2ab79fcdd4ef/go.mod h1:nXTWP6+gD5+LUJ8krVhhoeHjvHTutPxMYl5SvkcnJNE=
 golang.org/x/image v0.46.0 h1:b1+oYj0Jbp6K5MDT4i4/eZpYlk3V8SJhhDKh6LBHAyQ=

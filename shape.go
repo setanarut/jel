@@ -5,26 +5,28 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/setanarut/v"
 )
 
 // Shape contains a set of points that is equivalent as the local shape of a [Body].
 //
 // Points must be added in a counter-clockwise (CCW) fashion to align with screen space
 // coordinates where the y-axis grows downwards, ensuring outward-facing edge normals.
-type Shape []Vec2
+type Shape []v.Vec
 
 func (c *Shape) Clone() Shape {
 	return slices.Clone(*c)
 }
 
 // Adds a vertex to this shape
-func (c *Shape) AddVertex(pos Vec2) {
+func (c *Shape) AddVertex(pos v.Vec) {
 	*c = append(*c, pos)
 }
 
 // Adds a vertex to this shape
 func (c *Shape) AddVertexXY(x, y float64) {
-	c.AddVertex(Vec2{X: x, Y: y})
+	c.AddVertex(v.Vec{X: x, Y: y})
 }
 
 // Recenter re-centers the points of this shape in-place so its centroid
@@ -48,7 +50,7 @@ func (c *Shape) Reverse() {
 //
 //   - note: The target slice of points must have the **same** count of
 //     vertices as this shape.
-func (c *Shape) TransformByMatrixToTarget(target []Vec2, matrix Matrix3x3) {
+func (c *Shape) TransformByMatrixToTarget(target []v.Vec, matrix Matrix3x3) {
 	// if len(target) != len(*c) {
 	// 	panic("target length must equal len(c)")
 	// }
@@ -117,7 +119,7 @@ func (c *Shape) FitWidth(w float64) { c.fit(w, true) }
 // FitHeight uniformly scales the shape so its height becomes exactly h.
 func (c *Shape) FitHeight(h float64) { c.fit(h, false) }
 
-func (c *Shape) TranslateVerticesToTarget(target Shape, pos Vec2) {
+func (c *Shape) TranslateVerticesToTarget(target Shape, pos v.Vec) {
 	if len(target) != len(*c) {
 		panic("target length must equal len(c.LocalVertices)")
 	}
