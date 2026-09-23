@@ -100,9 +100,6 @@ func (b *BodyJointLink) AddVelocity(velocity v.Vec) {
 type PointJointLink struct {
 	// The point mass this joint is linked to
 	pointMass int
-	// Gets the body that this joint link is linked to
-	body *Body
-
 	baseJointLink
 }
 

@@ -975,3 +975,63 @@ func TestWorldUpdateDoesNotRebuildStaticBodyAABB(t *testing.T) {
 		t.Errorf("static body AABB changed during update: got %+v, want %+v", body.AABB, original)
 	}
 }
+
+func TestJointLinksReportLinkedBody(t *testing.T) {
+	body := NewBody(RegularPolygon(1, 3), v.Vec{}, 0, 1)
+
+	pointLink := NewPointJointLink(body, 1)
+	if pointLink.Body() != body {
+		t.Errorf("PointJointLink.Body() = %v, want %v", pointLink.Body(), body)
+	}
+	edgeLink := NewEdgeJointLink(body, 0)
+	if edgeLink.Body() != body {
+		t.Errorf("EdgeJointLink.Body() = %v, want %v", edgeLink.Body(), body)
+	}
+	shapeLink := NewShapeJointLink(body, []int{0, 1})
+	if shapeLink.Body() != body {
+		t.Errorf("ShapeJointLink.Body() = %v, want %v", shapeLink.Body(), body)
+	}
+	bodyLink := NewBodyJointLink(body)
+	if bodyLink.Body() != body {
+		t.Errorf("BodyJointLink.Body() = %v, want %v", bodyLink.Body(), body)
+	}
+}
+
+func TestAddAndRemoveJointRegistersOnLinkedBodies(t *testing.T) {
+	w := NewWorld()
+	a := NewBody(RegularPolygon(1, 3), v.Vec{}, 0, 1, w)
+	b := NewBody(RegularPolygon(1, 3), v.Vec{X: 1}, 0, 1, w)
+
+	joint := NewSpringJoint(
+		NewPointJointLink(a, 1),
+		NewPointJointLink(b, 0),
+		59, 10,
+		NewFixedRestDistance(2),
+	)
+
+	// Regression: this used to panic with a nil pointer dereference because
+	// PointJointLink.Body() returned nil (a duplicate `body` field shadowed
+	// the embedded baseJointLink field).
+	w.AddJoint(joint)
+
+	if !containsJoint(w.Joints, joint) {
+		t.Fatalf("world does not contain the added joint")
+	}
+	for _, body := range []*Body{a, b} {
+		if !containsJoint(body.Joints, joint) {
+			t.Errorf("body does not reference the added joint")
+		}
+	}
+
+	if !w.AreBodiesJoined(a, b) {
+		t.Errorf("AreBodiesJoined(a, b) = false, want true after AddJoint")
+	}
+
+	// Joints are resolved during the update; body links must be valid.
+	w.Update(1.0 / 60)
+
+	w.RemoveJoint(joint)
+	if containsJoint(w.Joints, joint) || containsJoint(a.Joints, joint) || containsJoint(b.Joints, joint) {
+		t.Errorf("joint was not removed from the world and both bodies")
+	}
+}

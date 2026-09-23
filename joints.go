@@ -28,7 +28,7 @@ type SpringJoint struct {
 	Spring
 }
 
-func NewSpringJoint(a, b JointLink, coefficient, damping float64, distance ...RestDistance) *SpringJoint {
+func NewSpringJoint(a, b JointLink, stiffnetss, damping float64, distance ...RestDistance) *SpringJoint {
 	var restDistance RestDistance
 	if len(distance) == 0 {
 		restDistance = NewFixedRestDistance(a.Position().Dist(b.Position()))
@@ -41,7 +41,7 @@ func NewSpringJoint(a, b JointLink, coefficient, damping float64, distance ...Re
 		BodyLinkB:    b,
 		Enabled:      true,
 		RestDistance: restDistance,
-		Stiffness:    coefficient,
+		Stiffness:    stiffnetss,
 		Damping:      damping,
 		Type:         JointSpring,
 	}
