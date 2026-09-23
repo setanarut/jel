@@ -15,32 +15,32 @@ import (
 // coordinates where the y-axis grows downwards, ensuring outward-facing edge normals.
 type Shape []v.Vec
 
-func (c *Shape) Clone() Shape {
-	return slices.Clone(*c)
+func (sh *Shape) Clone() Shape {
+	return slices.Clone(*sh)
 }
 
 // Adds a vertex to this shape
-func (c *Shape) AddVertex(pos v.Vec) {
-	*c = append(*c, pos)
+func (sh *Shape) AddVertex(pos v.Vec) {
+	*sh = append(*sh, pos)
 }
 
 // Adds a vertex to this shape
-func (c *Shape) AddVertexXY(x, y float64) {
-	c.AddVertex(v.Vec{X: x, Y: y})
+func (sh *Shape) AddVertexXY(x, y float64) {
+	sh.AddVertex(v.Vec{X: x, Y: y})
 }
 
 // Recenter re-centers the points of this shape in-place so its centroid
 // lies at (0, 0).
-func (c *Shape) Recenter() {
-	center := AverageVec2(*c)
-	for i, v := range *c {
-		(*c)[i] = v.Sub(center)
+func (sh *Shape) Recenter() {
+	center := AverageVec2(*sh)
+	for i, v := range *sh {
+		(*sh)[i] = v.Sub(center)
 	}
 }
 
 // Reverse reverses the vertices, so they rotate clockwise if they were counterclockwise, and counterclockwise if they were clockwise.
-func (c *Shape) Reverse() {
-	slices.Reverse(*c)
+func (sh *Shape) Reverse() {
+	slices.Reverse(*sh)
 }
 
 // --------- Shape Transformations -----------
@@ -50,55 +50,55 @@ func (c *Shape) Reverse() {
 //
 //   - note: The target slice of points must have the **same** count of
 //     vertices as this shape.
-func (c *Shape) TransformByMatrixToTarget(target []v.Vec, matrix Matrix3x3) {
+func (sh *Shape) TransformByMatrixToTarget(target []v.Vec, matrix Matrix3x3) {
 	// if len(target) != len(*c) {
 	// 	panic("target length must equal len(c)")
 	// }
 	for i := range target {
-		target[i] = matrix.Apply((*c)[i])
+		target[i] = matrix.Apply((*sh)[i])
 	}
 }
 
 // TransformByMatrix transforms vertices on this this shape inplace using a given Matrix3x3.
-func (c *Shape) TransformByMatrix(m Matrix3x3) {
-	for i := range *c {
-		(*c)[i] = m.Apply((*c)[i])
+func (sh *Shape) TransformByMatrix(m Matrix3x3) {
+	for i := range *sh {
+		(*sh)[i] = m.Apply((*sh)[i])
 	}
 }
 
 // Scale scales vertices on this this shape inplace using a given x, y.
-func (c *Shape) Scale(x, y float64) {
-	for i, vertex := range *c {
+func (sh *Shape) Scale(x, y float64) {
+	for i, vertex := range *sh {
 		vertex.X *= x
 		vertex.Y *= y
-		(*c)[i] = vertex
+		(*sh)[i] = vertex
 	}
 }
 
 // IsCCW reports whether the shape's vertices are wound counter-clockwise (CCW)
 // in screen space, where the Y axis grows downward. Returns false for shapes
 // with fewer than 3 vertices, since winding is undefined.
-func (c Shape) IsCCW() bool {
-	if len(c) < 3 {
+func (sh Shape) IsCCW() bool {
+	if len(sh) < 3 {
 		return false
 	}
 	var sum float64
-	n := len(c)
+	n := len(sh)
 	for i := range n {
-		p1 := c[i]
-		p2 := c[(i+1)%n]
+		p1 := sh[i]
+		p2 := sh[(i+1)%n]
 		sum += p1.X*p2.Y - p2.X*p1.Y
 	}
 	return sum < 0
 }
 
-func (c *Shape) fit(target float64, width bool) (size float64) {
-	if len(*c) == 0 {
+func (sh *Shape) fit(target float64, width bool) (size float64) {
+	if len(*sh) == 0 {
 		return
 	}
 
-	minV, maxV := (*c)[0], (*c)[0]
-	for _, p := range (*c)[1:] {
+	minV, maxV := (*sh)[0], (*sh)[0]
+	for _, p := range (*sh)[1:] {
 		minV = minV.Min(p)
 		maxV = maxV.Max(p)
 	}
@@ -109,22 +109,22 @@ func (c *Shape) fit(target float64, width bool) (size float64) {
 		size = maxV.Y - minV.Y
 	}
 
-	c.Scale(target/size, target/size)
+	sh.Scale(target/size, target/size)
 	return
 }
 
-// FitWidth uniformly scales the shape so its width becomes exactly w.
-func (c *Shape) FitWidth(w float64) { c.fit(w, true) }
+// SetWidth uniformly scales the shape so its width becomes exactly w.
+func (sh *Shape) SetWidth(w float64) { sh.fit(w, true) }
 
-// FitHeight uniformly scales the shape so its height becomes exactly h.
-func (c *Shape) FitHeight(h float64) { c.fit(h, false) }
+// SetHeight uniformly scales the shape so its height becomes exactly h.
+func (sh *Shape) SetHeight(h float64) { sh.fit(h, false) }
 
-func (c *Shape) TranslateVerticesToTarget(target Shape, pos v.Vec) {
-	if len(target) != len(*c) {
+func (sh *Shape) TranslateVerticesToTarget(target Shape, pos v.Vec) {
+	if len(target) != len(*sh) {
 		panic("target length must equal len(c.LocalVertices)")
 	}
 	for i := range target {
-		target[i] = (*c)[i].Add(pos)
+		target[i] = (*sh)[i].Add(pos)
 
 	}
 }
@@ -248,10 +248,10 @@ func ShapeFromSVGPolygonPoints(points string) (s Shape) {
 // PolygonPointsString returns the vertices in the format used by the SVG <polygon> element's points,
 // which is also the format accepted by [ShapeFromSVGPolygonPoints].
 // Precision specifies the number of digits after the decimal point.
-func (s Shape) PolygonPointsString(precision int) string {
+func (sh Shape) PolygonPointsString(precision int) string {
 	var b strings.Builder
 
-	for i, v := range s {
+	for i, v := range sh {
 		if i > 0 {
 			b.WriteByte(' ')
 		}

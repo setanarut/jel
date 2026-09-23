@@ -42,41 +42,35 @@ func makeJel(h float64, center v.Vec, world *jel.World) *jel.Body {
 	center.AddX(0.5)
 
 	s := jel.ShapeFromSVGPolygonPoints(examples.J)
-	s.FitHeight(h)
+	s.SetHeight(h)
 	jb := jel.NewBody(s, center.AddX(-1), 0, 1, world)
 	jb.AddComponent(jel.NewSpringComponent(200, 10))
 	jb.AddComponent(jel.NewShapeMatchComponent(200, 10, nil))
-	// jb.AddComponent(jel.NewPressureComponent(30))
-	jb.AddComponent(jel.NewGravityComponent(0, 0, true))
-	// jb.IsPinned = true
+	jb.AddComponent(jel.NewGravityComponent(0, 2, true))
 
 	s = jel.ShapeFromSVGPolygonPoints(examples.E)
-	s.FitHeight(h)
+	s.SetHeight(h)
 	eb := jel.NewBody(s, center, 0, 1, world)
 	eb.AddComponent(jel.NewSpringComponent(200, 10))
 	eb.AddComponent(jel.NewShapeMatchComponent(200, 10, nil))
-	// eb.AddComponent(jel.NewPressureComponent(30))
-	eb.AddComponent(jel.NewGravityComponent(0, 0, true))
-	// eb.IsPinned = true
-	// eb.FreeRotate = false
+	eb.AddComponent(jel.NewGravityComponent(0, 2, true))
 
 	s = jel.ShapeFromSVGPolygonPoints(examples.L)
-	s.FitHeight(h)
+	s.SetHeight(h)
 	lb := jel.NewBody(s, center.AddX(1), 0, 1, world)
 	lb.AddComponent(jel.NewSpringComponent(200, 10))
 	lb.AddComponent(jel.NewShapeMatchComponent(200, 10, nil))
-	// lb.AddComponent(jel.NewPressureComponent(30))
-	lb.AddComponent(jel.NewGravityComponent(0, 0, true))
-	// lb.IsPinned = true
+	lb.AddComponent(jel.NewGravityComponent(0, 2, true))
 
 	link := jel.NewBodyJointLink(jb)
 	link2 := jel.NewBodyJointLink(eb)
 
 	world.AddJoint(jel.NewSpringJoint(link, link2, 59, 10, jel.NewFixedRestDistance(2)))
 
-	jb.UserData = rgb(255, 143, 195)
-	eb.UserData = rgb(255, 143, 195)
-	lb.UserData = rgb(255, 143, 195)
+	// If UserData is a color.Color, the renderer uses it.
+	jb.UserData = rgb(244, 75, 75)
+	eb.UserData = rgb(25, 237, 36)
+	lb.UserData = rgb(82, 75, 231)
 
 	return jb
 
