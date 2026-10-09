@@ -1,6 +1,6 @@
 # jel
 
-<video src="https://github.com/user-attachments/assets/00f1a1d6-09ac-4e36-b70f-8dd4a48fac07" width="100%" controls></video>
+https://github.com/user-attachments/assets/00f1a1d6-09ac-4e36-b70f-8dd4a48fac07
 
 2D soft-body physics library written in Go.
 
